@@ -12,6 +12,7 @@ import { PlayReadyDrm } from '../services/playready-drm';
 import { loadShaka, type ShakaNamespaceLike } from '../services/shaka-loader';
 import { parseAudioRenditions } from '../utils/audio-tracks';
 import { FetchTextError, fetchLimitedText } from '../utils/fetch-helper';
+import { proxiedUrl } from '../services/service-http';
 import { getLenientLoaders } from '../utils/hls-stable-loader';
 import { createLogger } from '../utils/logger';
 import { isWebOS } from '../utils/platform';
@@ -142,6 +143,7 @@ export class PlayerPipeline {
   private hlsRecoveries = 0;
   private manifestSeq = 0;
   private manifestController: AbortController | null = null;
+  private requestHeaders: Record<string, string> | undefined;
   private videoLoadLabels = new WeakMap<HTMLVideoElement, string>();
   private playReadyDrm = new PlayReadyDrm();
   private activeDrm = '';
@@ -246,6 +248,10 @@ export class PlayerPipeline {
   ): void {
     const videoEl = this.videoEl;
     if (!videoEl) return;
+    url = proxiedUrl(url, extras?.['http-user-agent']);
+    this.requestHeaders = extras?.['http-user-agent']
+      ? { 'User-Agent': extras['http-user-agent'] }
+      : undefined;
     const safeUrl = diagnosticStreamUrl(url);
     const urlMime = streamUrlMime(url);
     const isTsUrl = urlMime === 'video/mp2t';
@@ -450,7 +456,9 @@ export class PlayerPipeline {
     const timer = setTimeout(() => controller.abort(), CONFIG.PLAYER.MANIFEST_TIMEOUT);
     let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
     try {
-      const res = await fetch(url, { signal: controller.signal });
+      const res = await fetch(url, this.requestHeaders
+        ? { signal: controller.signal, headers: this.requestHeaders }
+        : { signal: controller.signal });
       const ct = (res.headers.get('content-type') || '').toLowerCase();
       const baseType = ct.split(';')[0].trim();
       const sniffBody = baseType === 'application/octet-stream'
@@ -892,6 +900,7 @@ export class PlayerPipeline {
         CONFIG.PLAYER.MANIFEST_TIMEOUT,
         controller.signal,
         dash ? mpdOpeningVerdict : '#EXTM3U',
+        this.requestHeaders,
       );
       if (seq !== this.manifestSeq) return null;
       if (dash && !isMpdText(text)) {

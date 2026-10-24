@@ -347,6 +347,8 @@ export const EN_MESSAGES = {
   'settings.assrtDescription': 'Assrt.net primarily provides Chinese subtitles. The token is optional; leave blank to use the shared token.',
   'settings.username': 'Username',
   'settings.password': 'Password',
+  'settings.userAgent': 'User-Agent',
+  'settings.userAgentPlaceholder': 'Optional',
   'settings.dataManagement': 'Data Management',
   'settings.advanced': 'Advanced',
   'settings.advancedGroupInterface': 'Interface',

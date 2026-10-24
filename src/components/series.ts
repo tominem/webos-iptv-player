@@ -236,7 +236,7 @@ export class Series extends CatalogView<SeriesCategory, SeriesItem> {
 
   private creds(): XtreamCredentials {
     const a = this.account!;
-    return { baseUrl: a.url, username: a.xtream!.username, password: a.xtream!.password };
+    return { baseUrl: a.url, ...a.xtream! };
   }
 
   // A Continue-rail tile carries only the resume entry (episode id + composed

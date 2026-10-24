@@ -357,6 +357,8 @@ export const RU_MESSAGES = {
   'settings.assrtDescription': 'Assrt.net предлагает в основном китайские субтитры. Токен необязателен; оставьте поле пустым, чтобы использовать общий токен.',
   'settings.username': 'Имя пользователя',
   'settings.password': 'Пароль',
+  'settings.userAgent': 'User-Agent',
+  'settings.userAgentPlaceholder': 'Необязательно',
   'settings.dataManagement': 'Управление данными',
   'settings.advanced': 'Дополнительно',
   'settings.advancedGroupInterface': 'Интерфейс',

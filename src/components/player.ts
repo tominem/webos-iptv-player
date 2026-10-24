@@ -675,7 +675,9 @@ export class Player {
     this.pendingSeekTarget = null;
     this.osd.clearFailedIcons();
     this.videoEl.classList.add('active');
-    this.loadStream(v.url, null, { direct: true });
+    const userAgent = StorageService.getPlaylists()
+      .find(pl => pl.id === v.accountId && pl.source === 'xtream')?.xtream?.userAgent;
+    this.loadStream(v.url, userAgent ? { 'http-user-agent': userAgent } : null, { direct: true });
     this.tracks.attachVod(v);
     // Read codec/fps/HDR from the container header — the video element can't
     // expose them on webOS. Fires once, off the playback path; re-renders the OSD

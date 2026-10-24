@@ -7,6 +7,7 @@ import {
   type PlaylistTab,
 } from '../types';
 import { fetchAndParseM3U } from '../parsers/m3u-loader';
+import { proxiedUrl } from './service-http';
 import type { M3ULoadProgress } from '../parsers/m3u-loader';
 import {
   xtreamPlaylistUrl,
@@ -332,13 +333,23 @@ class PlaylistServiceImpl {
     const failedSourceIds = new Set<string>();
     let completedProcessed = 0;
     let completedKept = 0;
-    const addEpgSource = (url: string, playlistId: string, kind: EpgSource['kind']): void => {
+    const addEpgSource = (
+      url: string,
+      playlistId: string,
+      kind: EpgSource['kind'],
+      userAgent?: string,
+    ): void => {
       const existing = epgSources.find((source) => source.url === url);
       if (existing) {
         if (!existing.playlistIds.includes(playlistId)) existing.playlistIds.push(playlistId);
         return;
       }
-      epgSources.push({ url, playlistIds: [playlistId], kind });
+      epgSources.push({
+        url,
+        playlistIds: [playlistId],
+        kind,
+        ...(userAgent ? { userAgent } : {}),
+      });
     };
 
     for (let playlistIndex = 0; playlistIndex < playlists.length; playlistIndex++) {
@@ -441,7 +452,7 @@ class PlaylistServiceImpl {
         let playlistError: unknown;
         try {
           const loaded = await fetchAndParseM3U(
-            fetchUrl,
+            proxiedUrl(fetchUrl, xtreamCredentials?.userAgent),
             60000,
             xtreamCatalogAvailable ? xtreamReferences : undefined,
             xtreamCredentials?.baseUrl,
@@ -457,6 +468,7 @@ class PlaylistServiceImpl {
               });
             },
             xtreamGroupFilter,
+            xtreamCredentials?.userAgent,
           );
           parsed = loaded.data;
         } catch (err) {
@@ -523,7 +535,11 @@ class PlaylistServiceImpl {
         log.info('Parsed', parsed.channels.length, 'channels,', parsed.groups.length, 'groups',
           parsed.epgUrl ? `| epg: ${parsed.epgUrl}` : '');
         let added = 0, dupes = 0;
+        const streamUserAgent = xtreamCredentials?.userAgent;
         for (const ch of parsed.channels) {
+          if (streamUserAgent && !ch.extras?.['http-user-agent']) {
+            ch.extras = { ...ch.extras, 'http-user-agent': streamUserAgent };
+          }
           const existing = byUrl.get(ch.url);
           if (existing) {
             // Same stream in an earlier playlist: keep the one channel object
@@ -542,7 +558,7 @@ class PlaylistServiceImpl {
         if (pl.source === 'xtream' && pl.xtream) {
           // The panel's own XMLTV endpoint; the get.php url-tvg (if any) is added below too.
           const epg = xtreamEpgUrl({ baseUrl: pl.url, ...pl.xtream });
-          addEpgSource(epg, plKey, 'xtream');
+          addEpgSource(epg, plKey, 'xtream', pl.xtream.userAgent);
         }
         for (const parsedEpgUrl of parsed.epgUrls) {
           // Resolve localhost/127.0.0.1 in embedded EPG URL to the playlist's host

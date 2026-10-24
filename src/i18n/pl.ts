@@ -357,6 +357,8 @@ export const PL_MESSAGES = {
   'settings.assrtDescription': 'Assrt.net udostępnia głównie chińskie napisy. Token jest opcjonalny; pozostaw puste pole, aby użyć wspólnego tokenu.',
   'settings.username': 'Nazwa użytkownika',
   'settings.password': 'Hasło',
+  'settings.userAgent': 'User-Agent',
+  'settings.userAgentPlaceholder': 'Opcjonalnie',
   'settings.dataManagement': 'Zarządzanie danymi',
   'settings.advanced': 'Zaawansowane',
   'settings.advancedGroupInterface': 'Interfejs',

@@ -339,6 +339,8 @@ export const ZH_CN_MESSAGES = {
   'settings.assrtDescription': 'Assrt.net 主要提供中文字幕，令牌可选，留空时使用共享令牌。',
   'settings.username': '用户名',
   'settings.password': '密码',
+  'settings.userAgent': 'User-Agent',
+  'settings.userAgentPlaceholder': '可选',
   'settings.dataManagement': '数据管理',
   'settings.advanced': '高级',
   'settings.advancedGroupInterface': '界面',

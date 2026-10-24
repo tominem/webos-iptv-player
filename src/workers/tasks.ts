@@ -15,6 +15,7 @@ export interface M3UWorkerRequest {
   xtreamLive?: XtreamLiveReference[];
   xtreamBaseUrl?: string;
   xtreamGroupFilter?: XtreamGroupNameFilter;
+  userAgent?: string;
 }
 
 export interface M3UWorkerResponse {
@@ -50,6 +51,7 @@ export type M3UWorkerChunk =
 export interface XMLTVWorkerRequest {
   url: string;
   timeout: number;
+  userAgent?: string;
   options: {
     nowMs?: number;
     channelIds?: string[];

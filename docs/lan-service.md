@@ -54,10 +54,23 @@ HTTP (called by phones, and by the app for reconcile):
 | `/setup-actions` | GET | Loopback-only list consumed by the TV app. |
 | `/setup-actions/:id` | DELETE | Loopback-only acknowledgement from the TV app. |
 | `/setup-actions/:id?token=…` | GET | Phone-facing application status. |
+| `/proxy/:name?u=…&ua=…` | GET, HEAD | Loopback-only forwarder that sends the account's User-Agent upstream, follows redirects, and rewrites HLS playlists back through itself. |
 | `/uploads` | GET | List all stored uploads with serve-back URLs. |
 | `/uploads?name=foo.m3u&token=…` | POST | Save a playlist; fires `serviceEvents`. |
 | `/uploads/:id[.m3u]` | GET | Serve a stored playlist. |
 | `/uploads/:id?token=…` | DELETE | Remove an upload; loopback callers do not need the token. |
+
+## Provider User-Agent proxy
+
+The app's Chromium 53 ignores a script-set `User-Agent`, so requests to a
+provider that validates it cannot carry the header. When an Xtream account
+has a User-Agent, the app sends its API, playlist, guide, and stream requests
+to `/proxy` on the loopback port instead (`proxiedUrl` in
+`src/services/service-http.ts`), and the service forwards them with that
+header. The route accepts loopback callers only, and the app waits for
+`start` before its first provider request. Proxied URLs embed the current
+port, so they are never persisted; a restart after backgrounding re-resolves
+them from the stored provider URL.
 
 ## Event-driven updates
 

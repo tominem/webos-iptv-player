@@ -48,6 +48,7 @@ vi.mock('../services/storage-service', () => ({
     touchRecentlyWatchedLive: vi.fn(),
     getChannelCycleMode: vi.fn(() => 'global'),
     getLiveReconnectAttempts: vi.fn(() => 3),
+    getPlaylists: vi.fn(() => []),
   },
 }));
 vi.mock('../services/media-probe', () => ({

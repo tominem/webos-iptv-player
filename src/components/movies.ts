@@ -229,7 +229,7 @@ export class Movies extends CatalogView<VodCategory, VodItem> {
   private vodUrl(vod: VodItem): string {
     const a = this.account!;
     return xtreamVodUrl(
-      { baseUrl: a.url, username: a.xtream!.username, password: a.xtream!.password },
+      { baseUrl: a.url, ...a.xtream! },
       vod.streamId,
       vod.containerExtension || 'mp4',
     );

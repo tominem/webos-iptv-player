@@ -86,6 +86,7 @@ export async function fetchLimitedText(
   timeout: number,
   signal?: AbortSignal,
   requiredPrefix?: string | readonly string[] | FetchPrefixValidator,
+  headers?: Record<string, string>,
 ): Promise<string> {
   const controller = new AbortController();
   let timedOut = false;
@@ -122,7 +123,9 @@ export async function fetchLimitedText(
   let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
   let complete = false;
   try {
-    const response = await fetch(url, { signal: controller.signal });
+    const response = await fetch(url, headers
+      ? { signal: controller.signal, headers }
+      : { signal: controller.signal });
     if (!response.ok) {
       throw new FetchTextError('http', `HTTP ${response.status}: ${response.statusText}`);
     }

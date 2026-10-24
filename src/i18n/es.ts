@@ -345,6 +345,8 @@ export const ES_MESSAGES = {
   'settings.assrtDescription': 'Assrt.net ofrece principalmente subtítulos en chino. El token es opcional; déjalo en blanco para usar el token compartido.',
   'settings.username': 'Usuario',
   'settings.password': 'Contraseña',
+  'settings.userAgent': 'User-Agent',
+  'settings.userAgentPlaceholder': 'Opcional',
   'settings.dataManagement': 'Gestión de datos',
   'settings.advanced': 'Avanzado',
   'settings.advancedGroupInterface': 'Interfaz',

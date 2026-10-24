@@ -311,6 +311,24 @@ describe('setup actions', () => {
     expect(await (await fetch(`${baseUrl}/setup-actions`)).json()).toEqual([]);
   });
 
+  it('accepts an optional User-Agent on Xtream actions and rejects bad ones', async () => {
+    expect((await postAction({
+      type: 'xtream', serverUrl: 'http://host', username: 'u1', password: 'p1',
+      userAgent: ' UA/1 ',
+    })).status).toBe(201);
+    expect((await postAction({
+      type: 'xtream', serverUrl: 'http://host', username: 'u1', password: 'p1',
+      userAgent: '',
+    })).status).toBe(201);
+    expect((await postAction({
+      type: 'xtream', serverUrl: 'http://host', username: 'u1', password: 'p1',
+      userAgent: 'UA\r\nX: 1',
+    })).status).toBe(400);
+    const actions = await (await fetch(`${baseUrl}/setup-actions`)).json();
+    expect(actions[0].userAgent).toBe('UA/1');
+    expect(actions[1]).not.toHaveProperty('userAgent');
+  });
+
   it('validates setup action fields and URL protocols', async () => {
     expect((await postAction({
       type: 'xtream', serverUrl: 'file:///tmp/a', username: 'u1', password: 'p1',

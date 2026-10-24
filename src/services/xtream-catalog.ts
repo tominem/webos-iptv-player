@@ -29,7 +29,7 @@ const log = createLogger('Catalog');
 
 function clientFor(a: PlaylistEntry) {
   return createXtreamClient(
-    { baseUrl: a.url, username: a.xtream!.username, password: a.xtream!.password },
+    { baseUrl: a.url, ...a.xtream! },
     a.id,
   );
 }

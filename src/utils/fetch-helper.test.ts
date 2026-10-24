@@ -310,3 +310,13 @@ describe('fetchWithRetry', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('fetchLimitedText headers', () => {
+  it('forwards request headers to fetch', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}'));
+    vi.stubGlobal('fetch', fetchMock);
+    await fetchLimitedText('http://host/a', 100, 1000, undefined, undefined, { 'User-Agent': 'UA/1' });
+    expect(fetchMock.mock.calls[0][1].headers).toEqual({ 'User-Agent': 'UA/1' });
+    vi.unstubAllGlobals();
+  });
+});

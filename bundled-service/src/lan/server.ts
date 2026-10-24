@@ -22,6 +22,7 @@ import {
 } from '../setup/actions';
 import { parseSetupState, SetupStateStore } from '../setup/state';
 import { isValidUploadId, UploadStore } from '../upload/store';
+import { forwardRequest, isValidUserAgent } from './proxy';
 
 export type ServiceChangeEvent = 'uploads-changed' | 'setup-changed';
 
@@ -135,6 +136,18 @@ export function startServer(
           pairingCode,
           dataDir,
         });
+      } else if (pathname.indexOf('/proxy/') === 0) {
+        if (!isLoopback(req)) {
+          sendJson(res, 403, { error: 'Local access only' });
+          return;
+        }
+        const target = query('u') || '';
+        const userAgent = query('ua') || '';
+        if (!/^https?:\/\//i.test(target) || !isValidUserAgent(userAgent)) {
+          sendJson(res, 400, { error: 'Invalid proxy request' });
+          return;
+        }
+        forwardRequest(req, res, { target, userAgent, proxyBase: 'http://' + host });
       } else if ((pathname === '/' || pathname === '/setup') && req.method === 'GET') {
         send(res, 200, 'text/html; charset=utf-8', setupPageHtml());
       } else if (pathname === '/pair' && req.method === 'POST') {

@@ -26,6 +26,14 @@ describe('XtreamClient.getAccountInfo', () => {
     );
   });
 
+  it('sends the account User-Agent only when one is set', async () => {
+    fetchTextMock.mockResolvedValue(JSON.stringify({ user_info: { auth: 1 } }));
+    await createXtreamClient({ ...creds, userAgent: 'UA/1' }).getAccountInfo();
+    expect(fetchTextMock.mock.calls[0][5]).toEqual({ 'User-Agent': 'UA/1' });
+    await createXtreamClient(creds).getAccountInfo();
+    expect(fetchTextMock.mock.calls[1]).toHaveLength(4);
+  });
+
   it('parses an active account', async () => {
     fetchTextMock.mockResolvedValue(JSON.stringify({
       user_info: {

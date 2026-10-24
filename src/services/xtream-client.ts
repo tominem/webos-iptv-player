@@ -3,6 +3,7 @@ import { xtreamPlayerApi, type XtreamCredentials } from '../utils/xtream-url';
 import { createLogger } from '../utils/logger';
 import type { VodCategory, VodItem, VodInfo, SeriesCategory, SeriesItem, SeriesInfo, Episode, SidecarSubtitle } from '../types';
 import { CONFIG } from '../config';
+import { proxiedUrl } from './service-http';
 
 const log = createLogger('Xtream');
 
@@ -179,15 +180,19 @@ function logRequestFailure(
   );
 }
 
-async function fetchJsonStrict(
+async function fetchJsonStrictBare(
   url: string,
   timeout: number,
   maxBytes: number,
   signal?: AbortSignal,
+  userAgent?: string,
 ): Promise<unknown> {
   let text: string;
   try {
-    text = await fetchLimitedText(url, maxBytes, timeout, signal);
+    text = userAgent
+      ? await fetchLimitedText(
+        proxiedUrl(url, userAgent), maxBytes, timeout, signal, undefined, { 'User-Agent': userAgent })
+      : await fetchLimitedText(url, maxBytes, timeout, signal);
   } catch (err) {
     const requestError = mapFetchError(err);
     logRequestFailure(url, requestError, timeout, maxBytes);
@@ -205,27 +210,29 @@ async function fetchJsonStrict(
 
 // Tolerant metadata callers model unsupported endpoints as null/empty.
 // Cancellation still propagates to the request owner.
-async function fetchJson(
+async function fetchJsonBare(
   url: string,
   timeout: number,
   maxBytes: number,
   signal?: AbortSignal,
+  userAgent?: string,
 ): Promise<unknown> {
   try {
-    return await fetchJsonStrict(url, timeout, maxBytes, signal);
+    return await fetchJsonStrictBare(url, timeout, maxBytes, signal, userAgent);
   } catch (err) {
     if (isXtreamRequestCancelled(err)) throw err;
     return null;
   }
 }
 
-async function fetchCatalogArray(
+async function fetchCatalogArrayBare(
   url: string,
   maxBytes: number,
   idField: 'category_id' | 'stream_id' | 'series_id',
   signal?: AbortSignal,
+  userAgent?: string,
 ): Promise<Record<string, unknown>[]> {
-  const data = await fetchJsonStrict(url, CATALOG_TIMEOUT, maxBytes, signal);
+  const data = await fetchJsonStrictBare(url, CATALOG_TIMEOUT, maxBytes, signal, userAgent);
   const items = asArray(data);
   if (!Array.isArray(data) || (data.length && !items.some(item => toStr(item[idField]) !== ''))) {
     const error = new XtreamRequestError('request_failed', 'Xtream catalog response was not a valid list');
@@ -303,6 +310,17 @@ function parseServerOffset(server: Record<string, unknown>): number | null {
 /** A per-account handle over the Xtream `player_api.php` JSON endpoint. Flat
  *  composition (no inheritance); catalog methods grow on the same factory. */
 export function createXtreamClient(creds: XtreamCredentials, accountId = '') {
+  const userAgent = creds.userAgent || undefined;
+  const fetchJson = (url: string, timeout: number, maxBytes: number, signal?: AbortSignal) =>
+    fetchJsonBare(url, timeout, maxBytes, signal, userAgent);
+  const fetchJsonStrict = (url: string, timeout: number, maxBytes: number, signal?: AbortSignal) =>
+    fetchJsonStrictBare(url, timeout, maxBytes, signal, userAgent);
+  const fetchCatalogArray = (
+    url: string,
+    maxBytes: number,
+    idField: 'category_id' | 'stream_id' | 'series_id',
+    signal?: AbortSignal,
+  ) => fetchCatalogArrayBare(url, maxBytes, idField, signal, userAgent);
   return {
     /** Account status, or null when the panel is unreachable / returns non-JSON. */
     async getAccountInfo(signal?: AbortSignal): Promise<XtreamAccountInfo | null> {

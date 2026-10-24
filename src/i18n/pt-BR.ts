@@ -345,6 +345,8 @@ export const PT_BR_MESSAGES = {
   'settings.assrtDescription': 'O Assrt.net oferece principalmente legendas em chinês. O token é opcional; deixe em branco para usar o token compartilhado.',
   'settings.username': 'Nome de usuário',
   'settings.password': 'Senha',
+  'settings.userAgent': 'User-Agent',
+  'settings.userAgentPlaceholder': 'Opcional',
   'settings.dataManagement': 'Gerenciamento de dados',
   'settings.advanced': 'Avançado',
   'settings.advancedGroupInterface': 'Interface',

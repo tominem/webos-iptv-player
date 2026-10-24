@@ -85,6 +85,8 @@ export interface EpgSource {
   url: string;
   playlistIds: string[];
   kind: 'manual' | 'm3u' | 'xtream';
+  /** User-Agent of the Xtream account that owns this source's endpoint. */
+  userAgent?: string;
   /** User correction applied after parsing; cached source timestamps stay unchanged. */
   offsetMinutes?: number;
 }
@@ -199,6 +201,7 @@ export interface PlaylistEntry {
   xtream?: {
     username: string;
     password: string;
+    userAgent?: string;
     liveOutput?: import('./utils/xtream-url').XtreamLiveOutputPreference;
     liveCategories?: XtreamLiveCategoryFilter;
   };

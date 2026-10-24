@@ -339,6 +339,8 @@ export const TR_MESSAGES = {
   'settings.assrtDescription': 'Assrt.net ağırlıklı olarak Çince altyazı sunar. Belirteç isteğe bağlıdır; ortak belirteci kullanmak için boş bırakın.',
   'settings.username': 'Kullanıcı adı',
   'settings.password': 'Parola',
+  'settings.userAgent': 'User-Agent',
+  'settings.userAgentPlaceholder': 'İsteğe bağlı',
   'settings.dataManagement': 'Veri Yönetimi',
   'settings.advanced': 'Gelişmiş',
   'settings.advancedGroupInterface': 'Arayüz',

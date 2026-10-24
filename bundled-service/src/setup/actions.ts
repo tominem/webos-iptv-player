@@ -13,7 +13,7 @@ interface ManualEpgSourcePayload {
 
 export type SetupActionPayload =
   | { type: 'playlist'; name: string; url: string }
-  | { type: 'xtream'; serverUrl: string; username: string; password: string }
+  | { type: 'xtream'; serverUrl: string; username: string; password: string; userAgent?: string }
   | { type: 'manual-epg-sources'; sources: ManualEpgSourcePayload[] }
   | { type: 'remove-source'; sourceId: string }
   | { type: 'set-source-enabled'; sourceId: string; enabled: boolean }
@@ -32,6 +32,15 @@ function passwordValue(value: unknown): string {
     throw new Error('Invalid password');
   }
   return value;
+}
+
+function optionalUserAgent(value: unknown): { userAgent?: string } {
+  if (value === undefined || value === null) return {};
+  if (typeof value !== 'string') throw new Error('Invalid User-Agent');
+  const text = value.trim();
+  if (!text) return {};
+  if (text.length > 512 || /[^\x20-\x7e]/.test(text)) throw new Error('Invalid User-Agent');
+  return { userAgent: text };
 }
 
 function optionalApiKey(value: unknown, field: string): string | undefined {
@@ -74,6 +83,7 @@ export function parseSetupAction(value: unknown): SetupActionPayload {
       serverUrl: httpUrl(input.serverUrl, 'server URL'),
       username: stringValue(input.username, 'username', 256),
       password: passwordValue(input.password),
+      ...optionalUserAgent(input.userAgent),
     };
   }
   if (input.type === 'manual-epg-sources') {

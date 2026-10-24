@@ -357,6 +357,8 @@ export const UK_MESSAGES = {
   'settings.assrtDescription': 'Assrt.net пропонує переважно китайські субтитри. Токен необов’язковий; залиште поле порожнім, щоб використовувати спільний токен.',
   'settings.username': 'Ім’я користувача',
   'settings.password': 'Пароль',
+  'settings.userAgent': 'User-Agent',
+  'settings.userAgentPlaceholder': 'Необов’язково',
   'settings.dataManagement': 'Керування даними',
   'settings.advanced': 'Додатково',
   'settings.advancedGroupInterface': 'Інтерфейс',

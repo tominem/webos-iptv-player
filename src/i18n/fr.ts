@@ -345,6 +345,8 @@ export const FR_MESSAGES = {
   'settings.assrtDescription': 'Assrt.net propose principalement des sous-titres chinois. Le jeton est facultatif ; laissez vide pour utiliser le jeton partagé.',
   'settings.username': 'Nom d’utilisateur',
   'settings.password': 'Mot de passe',
+  'settings.userAgent': 'User-Agent',
+  'settings.userAgentPlaceholder': 'Facultatif',
   'settings.dataManagement': 'Gestion des données',
   'settings.advanced': 'Avancé',
   'settings.advancedGroupInterface': 'Interface',

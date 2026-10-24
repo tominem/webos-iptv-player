@@ -23,6 +23,7 @@ export async function fetchAndParseXMLTV(
   url: string,
   timeout = 30000,
   options: XMLTVParseOptions = {},
+  userAgent?: string,
 ): Promise<XMLTVLoadResult> {
   const started = Date.now();
   log.info(
@@ -37,6 +38,7 @@ export async function fetchAndParseXMLTV(
     const result = await runAppWorkerTask('xmltv.load', {
       url,
       timeout,
+      ...(userAgent ? { userAgent } : {}),
       options: {
         nowMs: options.nowMs ?? Date.now(),
         channelIds: options.channelIds ? Array.from(options.channelIds) : undefined,
@@ -191,6 +193,7 @@ export async function fetchAndParseXMLTVInWorker(
     false,
     emitChunk,
     1,
+    request.userAgent,
   );
   if (!first.parser.needsOrderRetry()) {
     return createResponse(first, 1, Date.now() - started);
@@ -198,7 +201,7 @@ export async function fetchAndParseXMLTVInWorker(
   const retry = await parsePass(request.url, request.timeout, {
     ...options,
     channelIds: first.parser.acceptedChannelIds(),
-  }, 'retry', true, emitChunk, 2);
+  }, 'retry', true, emitChunk, 2, request.userAgent);
   retry.inputBytes += first.inputBytes;
   retry.chunks += first.chunks;
   return createResponse(retry, 2, Date.now() - started);
@@ -212,6 +215,7 @@ async function parsePass(
   retried: boolean,
   emitChunk?: (chunk: XMLTVWorkerChunk) => void,
   attempt = 1,
+  userAgent?: string,
 ): Promise<{
   data: XMLTVWorkerResponse['data'];
   parser: XMLTVStreamParser;
@@ -232,7 +236,9 @@ async function parsePass(
   let nextProgressBytes = PROGRESS_INTERVAL_BYTES;
   const started = Date.now();
   try {
-    const response = await fetch(url, { signal: controller.signal });
+    const response = await fetch(url, userAgent
+      ? { signal: controller.signal, headers: { 'User-Agent': userAgent } }
+      : { signal: controller.signal });
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     stage = 'read';
     reader = typeof response.body?.getReader === 'function'

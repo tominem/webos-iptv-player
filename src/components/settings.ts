@@ -386,6 +386,11 @@ function xtreamCard(pl: Partial<PlaylistEntry>) {
           <input type="password" class="settings-input xtream-password" data-focusable
                  aria-label="${t('settings.password')}" placeholder="password" value="${pl.xtream?.password || ''}">
         </div>
+        <div class="settings-field wide">
+          <label>${t('settings.userAgent')}</label>
+          <input type="text" class="settings-input xtream-user-agent" data-focusable
+                 aria-label="${t('settings.userAgent')}" placeholder="${t('settings.userAgentPlaceholder')}" value="${pl.xtream?.userAgent || ''}">
+        </div>
         <div class="settings-field xtream-output">
           <label>${t('settings.streamFormat')}</label>
           ${dropdown(`xtream-output-${pl.id || ''}`, [
@@ -2596,13 +2601,19 @@ export class Settings {
     const url = card.querySelector<HTMLInputElement>('.xtream-url')!.value.trim();
     const username = card.querySelector<HTMLInputElement>('.xtream-username')!.value.trim();
     const password = card.querySelector<HTMLInputElement>('.xtream-password')!.value;
+    const userAgent = card.querySelector<HTMLInputElement>('.xtream-user-agent')!.value.trim();
     if (!url || !username || !password) {
       this.setXtreamStatus(id, html`${t('settings.enterCredentials')}`, 'err');
       return;
     }
 
     this.setXtreamStatus(id, html`${t('settings.checking')}`, '');
-    const info = await createXtreamClient({ baseUrl: url, username, password }).getAccountInfo();
+    const info = await createXtreamClient({
+      baseUrl: url,
+      username,
+      password,
+      ...(userAgent ? { userAgent } : {}),
+    }).getAccountInfo();
     if (!info) {
       log.warn(
         'Xtream verify failed — server unreachable or non-JSON',
@@ -2634,11 +2645,14 @@ export class Settings {
     );
   }
 
-  private cardAccount(card: HTMLElement): { url: string; username: string; password: string; key: string } {
+  private cardAccount(card: HTMLElement): {
+    url: string; username: string; password: string; userAgent: string; key: string;
+  } {
     const url = normalizeXtreamBaseUrl(card.querySelector<HTMLInputElement>('.xtream-url')!.value.trim());
     const username = card.querySelector<HTMLInputElement>('.xtream-username')!.value.trim();
     const password = card.querySelector<HTMLInputElement>('.xtream-password')!.value;
-    return { url, username, password, key: `${url}|${username}` };
+    const userAgent = card.querySelector<HTMLInputElement>('.xtream-user-agent')!.value.trim();
+    return { url, username, password, userAgent, key: `${url}|${username}` };
   }
 
   private storedAccountMatches(id: string, key: string): PlaylistEntry | undefined {
@@ -2671,6 +2685,7 @@ export class Settings {
       baseUrl: account.url,
       username: account.username,
       password: account.password,
+      ...(account.userAgent ? { userAgent: account.userAgent } : {}),
     });
     const restoreFocus = (): void => {
       const target = this.container.querySelector<HTMLElement>(
@@ -2778,7 +2793,9 @@ export class Settings {
         card.querySelector<HTMLElement>('.xtream-output .dropdown')!.dataset.value,
       );
       const id = card.dataset.id || genPlaylistId();
+      const userAgent = card.querySelector<HTMLInputElement>('.xtream-user-agent')!.value.trim();
       const xtream: NonNullable<PlaylistEntry['xtream']> = { username, password, liveOutput };
+      if (userAgent) xtream.userAgent = userAgent;
       const accountKey = `${base}|${username}`;
       const liveCategories = this.cardLiveCategories(id, accountKey);
       if (liveCategories) xtream.liveCategories = liveCategories;
@@ -2971,6 +2988,7 @@ export class Settings {
         isSourceEnabled(pl),
         pl.xtream?.username,
         pl.xtream?.password,
+        pl.xtream?.userAgent ?? '',
         pl.xtream ? normalizeXtreamLiveOutputPreference(pl.xtream.liveOutput) : '',
         pl.xtream ? normalizeLiveCategoryFilter(pl.xtream.liveCategories) ?? null : null,
       ]));

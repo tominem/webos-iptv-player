@@ -37,6 +37,7 @@ export async function fetchAndParseM3U(
   xtreamBaseUrl = '',
   onProgress?: (progress: M3ULoadProgress) => void,
   groupFilter?: XtreamGroupNameFilter,
+  userAgent?: string,
 ): Promise<M3ULoadResult> {
   const started = Date.now();
   const filter = liveStreams !== undefined
@@ -62,6 +63,7 @@ export async function fetchAndParseM3U(
       : undefined,
     ...(xtreamBaseUrl ? { xtreamBaseUrl } : {}),
     ...(groupFilter ? { xtreamGroupFilter: groupFilter } : {}),
+    ...(userAgent ? { userAgent } : {}),
   };
   const channelBatches: Channel[] = [];
   const handleChunk = (chunk: M3UWorkerChunk): void => {
@@ -215,7 +217,9 @@ export async function fetchAndParseM3UInWorker(
   let transport: M3UWorkerResponse['metrics']['transport'] = 'stream';
   let stage = 'fetch';
   try {
-    const response = await fetch(request.url, { signal: controller.signal });
+    const response = await fetch(request.url, request.userAgent
+      ? { signal: controller.signal, headers: { 'User-Agent': request.userAgent } }
+      : { signal: controller.signal });
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     stage = 'read';
     reader = typeof response.body?.getReader === 'function'

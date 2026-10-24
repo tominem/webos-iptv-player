@@ -400,12 +400,17 @@ class App {
     // Register a retail-safe callback immediately. If Developer Mode is
     // detected below, the same named activities are replaced with alerts.
     ReminderService.reschedulePending();
+    // A provider User-Agent is applied by the bundled service's proxy, so the
+    // service must be up before the first provider request.
+    const needsProxy = StorageService.getPlaylists().some(pl => !!pl.xtream?.userAgent);
+    const earlyServiceStart = needsProxy ? this.startBundledService() : null;
+    if (earlyServiceStart) await earlyServiceStart;
     await this.loadData();
     // Cold launch from a "Watch now" alert: channels are loaded now, so tune.
     this.handleLaunchParams(this.coldLaunchParams());
     // Spawning the service process can synchronously stall Luna on a cold TV.
     // Keep LAN setup off the critical path so cached channels render first.
-    const bundledServiceReady = this.startBundledService();
+    const bundledServiceReady = earlyServiceStart ?? this.startBundledService();
     void bundledServiceReady
       .then((started) => started ? this.finishBundledServiceInit() : undefined)
       .catch(err => log.error('Bundled service initialization failed:', err));

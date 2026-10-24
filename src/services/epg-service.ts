@@ -15,6 +15,7 @@ import type { CachedEpgFilter } from './idb-cache';
 import { ChannelCustomizationService } from './channel-customization';
 import { channelKey } from '../utils/channel';
 import { StorageService } from './storage-service';
+import { proxiedUrl } from './service-http';
 
 const log = createLogger('EPG');
 
@@ -623,14 +624,14 @@ class EpgServiceImpl {
     }
     const done = log.time(`fetch '${source.url}'`);
     try {
-      const { data: result, stats } = await fetchAndParseXMLTV(source.url, 120000, filter
+      const { data: result, stats } = await fetchAndParseXMLTV(proxiedUrl(source.url, source.userAgent), 120000, filter
         ? {
             channelIds: filter.ids,
             channelNames: filter.names,
             retainChannelCatalog: true,
             maxProgrammes: CONFIG.EPG.MAX_RETAINED_PROGRAMMES,
           }
-        : { maxProgrammes: CONFIG.EPG.MAX_RETAINED_PROGRAMMES });
+        : { maxProgrammes: CONFIG.EPG.MAX_RETAINED_PROGRAMMES }, source.userAgent);
       if (revision !== this.revision) {
         done();
         return false;

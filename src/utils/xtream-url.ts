@@ -10,6 +10,8 @@ export interface XtreamCredentials {
   baseUrl: string;
   username: string;
   password: string;
+  /** Optional User-Agent some providers require on every request. */
+  userAgent?: string;
 }
 
 export type XtreamLiveOutput = 'ts' | 'm3u8';
