@@ -47,6 +47,12 @@ export const CONFIG = {
     LIVE_PREVIEW_UPCOMING_COUNT: 4,
     LIVE_PREVIEW_REFRESH_MS: 1000,
     DEFAULT_PLAYER_OSD_TIMEOUT_MS: 5000,
+    // After a live stream fails: how long the diagnosis may take, how long its
+    // message stays up before the next channel opens, and how much of the
+    // stream it reads to name the codecs.
+    FAILURE_DIAGNOSIS_TIMEOUT_MS: 2000,
+    FAILURE_MESSAGE_MS: 2000,
+    FAILURE_DIAGNOSIS_BYTES: 188 * 700,
     BUFFER_LENGTH: 30,
     MANIFEST_TIMEOUT: 5000,
     MANIFEST_MAX_BYTES: 256 * 1024,

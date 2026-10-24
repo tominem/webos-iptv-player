@@ -17,6 +17,8 @@ const { healthMock, playlistMock } = vi.hoisted(() => ({
 
 vi.mock('../services/playlist-service', () => ({ PlaylistService: playlistMock }));
 vi.mock('../services/channel-health', () => ({ ChannelHealthService: healthMock }));
+const { diagnoseMock } = vi.hoisted(() => ({ diagnoseMock: vi.fn() }));
+vi.mock('../services/stream-diagnosis', () => ({ diagnoseStream: diagnoseMock }));
 vi.mock('../services/epg-service', () => ({
   EpgService: { findChannelId: () => null, getNowPlaying: () => null, getUpcoming: () => [] },
 }));
@@ -217,6 +219,8 @@ const flush = async () => { for (let i = 0; i < 5; i++) await Promise.resolve();
 
 beforeEach(() => {
   vi.useFakeTimers();
+  diagnoseMock.mockReset();
+  diagnoseMock.mockResolvedValue({ reason: 'unknown' });
   vi.stubGlobal('fetch', vi.fn(async () => ({
     headers: { get: () => 'application/vnd.apple.mpegurl' },
     body: { cancel: async () => {} },
@@ -766,7 +770,8 @@ describe('Player live playback', () => {
     expect(healthMock.recordPlaybackFailure).not.toHaveBeenCalled();
 
     third.dispatchEvent(new Event('error'));
-    vi.advanceTimersByTime(2000);
+    // The retry window, then the failure message, before the next channel opens.
+    await vi.advanceTimersByTimeAsync(2000 + CONFIG.PLAYER.FAILURE_MESSAGE_MS);
 
     expect(playlistMock.getByIndex).toHaveBeenCalledTimes(1);
     expect(playlistMock.getByIndex).toHaveBeenCalledWith(1);
@@ -804,6 +809,36 @@ describe('Player live playback', () => {
     healthMock.recordPlaybackFailure.mockClear();
     video.dispatchEvent(new Event('error'));
     expect(healthMock.recordPlaybackFailure).toHaveBeenCalledOnce();
+  });
+
+  it('names the reason on screen before moving to the next channel', async () => {
+    diagnoseMock.mockResolvedValue({ reason: 'offline', status: 404 });
+    playlistMock.channels = [{}, {}];
+    player.play(0);
+    await flush();
+    playlistMock.getByIndex.mockClear();
+    Object.defineProperty(video, 'error', { configurable: true, value: { code: 4, message: '' } });
+
+    video.dispatchEvent(new Event('error'));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(container.querySelector('#player-osd')?.textContent)
+      .toContain('Channel offline — trying the next channel…');
+    expect(playlistMock.getByIndex).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(CONFIG.PLAYER.FAILURE_MESSAGE_MS);
+    expect(playlistMock.getByIndex).toHaveBeenCalledWith(1);
+  });
+
+  it('keeps the generic message when the diagnosis cannot tell', async () => {
+    playlistMock.channels = [{}, {}];
+    player.play(0);
+    await flush();
+    Object.defineProperty(video, 'error', { configurable: true, value: { code: 4, message: '' } });
+
+    video.dispatchEvent(new Event('error'));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(container.querySelector('#player-osd')?.textContent).toContain('Playback error — trying the next channel…');
   });
 
   it('cancels a pending reconnect when the user changes channel or stops', async () => {
@@ -1560,7 +1595,7 @@ describe('Player VOD mode', () => {
     expect(player.isVod()).toBe(true);
   });
 
-  it('routes a playback error to onBack, not a channel change', () => {
+  it('routes a playback error to onBack, not a channel change', async () => {
     const video = fakeVideo(3600);
     player.init(video);
     const r = req();
@@ -1569,14 +1604,14 @@ describe('Player VOD mode', () => {
     playlistMock.getByIndex.mockClear();
     vi.mocked(showToast).mockClear();
     video.dispatchEvent(new Event('error'));
-    vi.advanceTimersByTime(3000); // let any (unwanted) channelUp timer run
+    await vi.advanceTimersByTimeAsync(3000); // let any (unwanted) channelUp timer run
     expect(r.onBack).toHaveBeenCalled();
     expect(player.isVod()).toBe(false);
     expect(playlistMock.getByIndex).not.toHaveBeenCalled(); // no channel playback
     expect(showToast).toHaveBeenCalled();
   });
 
-  it('surfaces a source the element refused, which fires no error event', () => {
+  it('surfaces a source the element refused, which fires no error event', async () => {
     const video = fakeVideo(3600);
     // NETWORK_NO_SOURCE: every <source> was skipped, so no 'error' ever arrives.
     Object.assign(video, { readyState: 0, networkState: 3 });
@@ -1587,7 +1622,7 @@ describe('Player VOD mode', () => {
     vi.mocked(showToast).mockClear();
     const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    vi.advanceTimersByTime(CONFIG.PLAYER.STARTUP_POLL_MS);
+    await vi.advanceTimersByTimeAsync(CONFIG.PLAYER.STARTUP_POLL_MS);
 
     // A rejected source never becomes currentSrc, so the URL comes from the request.
     const detail = logged.mock.calls[0].join(' ');
@@ -1599,7 +1634,7 @@ describe('Player VOD mode', () => {
     expect(player.isVod()).toBe(false);
   });
 
-  it('surfaces a VOD stream that never produces a frame', () => {
+  it('surfaces a VOD stream that never produces a frame', async () => {
     const video = fakeVideo(3600);
     Object.assign(video, { readyState: 0, networkState: 2 }); // NETWORK_LOADING forever
     player.init(video);
@@ -1608,9 +1643,25 @@ describe('Player VOD mode', () => {
     video.dispatchEvent(new Event('loadstart'));
     vi.mocked(showToast).mockClear();
 
-    vi.advanceTimersByTime(CONFIG.PLAYER.STARTUP_TIMEOUT);
+    await vi.advanceTimersByTimeAsync(CONFIG.PLAYER.STARTUP_TIMEOUT);
 
     expect(showToast).toHaveBeenCalledWith('Unable to play this video.');
+    expect(r.onBack).toHaveBeenCalled();
+  });
+
+  it('names the reason in the toast when the diagnosis finds one', async () => {
+    diagnoseMock.mockResolvedValue({ reason: 'offline', status: 404 });
+    const video = fakeVideo(3600);
+    player.init(video);
+    const r = req({ url: 'http://host:8080/movie/u/p/10.mp4' });
+    player.playVod(r);
+    vi.mocked(showToast).mockClear();
+
+    video.dispatchEvent(new Event('error'));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(diagnoseMock).toHaveBeenCalledWith('http://host:8080/movie/u/p/10.mp4', undefined);
+    expect(showToast).toHaveBeenCalledWith('Unable to play this video: Channel offline.');
     expect(r.onBack).toHaveBeenCalled();
   });
 

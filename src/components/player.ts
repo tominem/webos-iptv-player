@@ -32,6 +32,7 @@ import { extFromUrl, diagnosticStreamUrl, streamUrlMime } from '../utils/url';
 import { isWebOS } from '../utils/platform';
 import { probeMedia } from '../services/media-probe';
 import { ChannelHealthService } from '../services/channel-health';
+import { diagnoseStream, type StreamFailure } from '../services/stream-diagnosis';
 import { createLogger } from '../utils/logger';
 import { t } from '../i18n';
 import { showToast } from './toast';
@@ -95,6 +96,9 @@ export class Player {
   private liveHistoryGeneration = -1;
   private liveHistoryTimer: ReturnType<typeof setTimeout> | null = null;
   private errorAdvanceTimer: ReturnType<typeof setTimeout> | null = null;
+  // The source the pipeline was last asked to load, for diagnosing its failure.
+  private streamUrl = '';
+  private streamUserAgent: string | undefined;
   private errorRetryPending = false;
   // Manual A/V resync (catch-up / VOD): true from the resync seek until playback
   // resumes, gating the "Resyncing…" message and debouncing repeat presses.
@@ -204,8 +208,7 @@ export class Player {
           `cause=${recovery.cause}`,
           this.recoveryState(recovery));
         this.markLiveUnavailable(recovery.cause === 'stall' ? 'stall_exhausted' : 'playback_error');
-        this.osd.updateMessage(t('player.streamError'));
-        this.channelUp();
+        this.showFailureAndAdvance();
       },
       pollMs: CONFIG.PLAYER.STALL_POLL_MS,
       freezeTicks: CONFIG.PLAYER.STALL_FREEZE_TICKS,
@@ -955,7 +958,17 @@ export class Player {
     this.manifestVariants = [];
     this.startupPending = true;
     this.startupWatchdog.stop();
+    this.streamUrl = url;
+    this.streamUserAgent = extras?.['http-user-agent'];
     this.pipeline.load(url, extras, opts);
+  }
+
+  // The reason the stream last loaded fails, worded for the screen; null when
+  // the diagnosis cannot tell.
+  private async failureLabel(): Promise<string | null> {
+    if (!this.streamUrl) return null;
+    const { reason } = await diagnoseStream(this.streamUrl, this.streamUserAgent);
+    return reason === 'unknown' ? null : t(`player.failure.${reason satisfies Exclude<StreamFailure, 'unknown'>}`);
   }
 
   /**
@@ -1017,9 +1030,12 @@ export class Player {
       this.vod = null;            // so stop() won't overwrite/wipe the resume point on error
       log.warn('VOD playback error', 'event=playback.vod.error',
         this.playbackLabel(), v.title);
+      const label = this.failureLabel().catch(() => null);
       this.stop();
-      showToast(t('player.unableToPlay'));
       v.onBack();
+      void label.then(reason => showToast(
+        reason ? t('player.unableToPlayReason', { reason }) : t('player.unableToPlay'),
+      ));
       return;
     }
     if (this.catchupInfo && this.currentChannel?.catchup === 'xtream' &&
@@ -1080,11 +1096,28 @@ export class Player {
     }
     this.stallWatchdog.stop();
     this.markLiveUnavailable('playback_error');
+    this.showFailureAndAdvance();
+  }
+
+  // The generic message stands until the diagnosis names the reason; the next
+  // channel opens a moment after whichever message is final.
+  private showFailureAndAdvance(): void {
     this.osd.updateMessage(t('player.streamError'));
-    this.errorAdvanceTimer = setTimeout(() => {
+    const generation = this.playbackGeneration;
+    const advance = (): void => {
       this.errorAdvanceTimer = null;
       this.channelUp();
-    }, 2000);
+    };
+    this.errorAdvanceTimer = setTimeout(
+      advance,
+      CONFIG.PLAYER.FAILURE_DIAGNOSIS_TIMEOUT_MS + CONFIG.PLAYER.FAILURE_MESSAGE_MS,
+    );
+    void this.failureLabel().catch(() => null).then(reason => {
+      if (generation !== this.playbackGeneration || this.errorAdvanceTimer === null) return;
+      clearTimeout(this.errorAdvanceTimer);
+      if (reason) this.osd.updateMessage(t('player.streamErrorReason', { reason }));
+      this.errorAdvanceTimer = setTimeout(advance, CONFIG.PLAYER.FAILURE_MESSAGE_MS);
+    });
   }
 
   private markLiveUnavailable(reason: string): void {
