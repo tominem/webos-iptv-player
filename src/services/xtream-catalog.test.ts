@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { PlaylistEntry } from '../types';
 import type { CatalogListState } from './idb-cache';
 
@@ -56,7 +56,9 @@ vi.mock('./idb-cache', () => ({
 import {
   getSearchCatalogExpiresAt,
   loadAllSeries,
+  clearPrefetchedCatalogs,
   loadAllVodStreams,
+  prefetchSearchCatalog,
   loadSeries,
   loadSeriesCategories,
   loadSeriesInfo,
@@ -517,6 +519,51 @@ describe('xtream-catalog whole-catalog (search)', () => {
       items.mockImplementation(async (categoryId?: string) => {
         if (categoryId === undefined) throw failure;
         return categoryId === '1' ? [first] : categoryId === '2' ? [second] : [third];
+      });
+    });
+
+    describe('whole-list request', () => {
+      afterEach(() => {
+        clearPrefetchedCatalogs();
+      });
+
+      it('serves a prefetched load without asking the provider again', async () => {
+        items.mockImplementation(async (categoryId?: string) =>
+          categoryId === undefined ? [first, second, third] : []);
+
+        prefetchSearchCatalog(account);
+        expect(await load(account, undefined, { wholeList: true })).toEqual([first, second, third]);
+
+        expect(items.mock.calls.map(call => call[0])).toEqual([undefined]);
+      });
+
+      it('fetches the list once and caches only the whole snapshot', async () => {
+        items.mockImplementation(async (categoryId?: string) =>
+          categoryId === undefined ? [first, second, third] : []);
+
+        expect(await load(account, undefined, { wholeList: true })).toEqual([first, second, third]);
+
+        expect(items.mock.calls.map(call => call[0])).toEqual([undefined]);
+        expect(cacheStore.has(partitionKey('2'))).toBe(false);
+        expect(cacheStore.get(key)).toMatchObject({
+          data: [first, second, third], state: { complete: true },
+        });
+      });
+
+      it('falls back to one request per category when the whole list fails', async () => {
+        expect(await load(account, undefined, { wholeList: true })).toEqual([first, second, third]);
+
+        expect(items.mock.calls.map(call => call[0]).sort()).toEqual(['1', '2', '3', undefined]);
+        expect(cacheStore.get(partitionKey('2'))?.data).toEqual([second]);
+      });
+
+      it('falls back to one request per category when the whole list is empty', async () => {
+        items.mockImplementation(async (categoryId?: string) => {
+          if (categoryId === undefined) return [];
+          return categoryId === '1' ? [first] : categoryId === '2' ? [second] : [third];
+        });
+
+        expect(await load(account, undefined, { wholeList: true })).toEqual([first, second, third]);
       });
     });
 

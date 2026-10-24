@@ -418,6 +418,7 @@ async function fetchPartition<T>(
   refetch: (signal?: AbortSignal) => Promise<T[]>,
   previous?: T[],
   keepStaleOnEmpty = false,
+  skipWrite: () => boolean = () => false,
 ): Promise<CatalogPartition<T>> {
   const { generation, signal } = context;
   const cached = await getCachedCatalog<T[]>(key);
@@ -460,9 +461,11 @@ async function fetchPartition<T>(
     };
   }
   const expiresAt = Date.now() + StorageService.getXtreamCatalogRefreshIntervalMs();
-  await setCachedCatalog(key, data, StorageService.getXtreamCatalogRefreshIntervalMs());
-  ensureCatalogActive(generation, signal);
-  notifyListWritten(key);
+  if (!skipWrite()) {
+    await setCachedCatalog(key, data, StorageService.getXtreamCatalogRefreshIntervalMs());
+    ensureCatalogActive(generation, signal);
+    notifyListWritten(key);
+  }
   return { ok: true, data, expiresAt };
 }
 
@@ -474,6 +477,7 @@ async function fetchWholeCatalog<T extends { categoryId: string }>(
   fetchCategories: (signal?: AbortSignal) => Promise<Array<{ id: string }>>,
   itemId: (item: T) => string,
   previous?: T[],
+  skipItemWrite?: () => boolean,
 ): Promise<CatalogListResult<T>> {
   ensureActive(signal);
   const controller = new AbortController();
@@ -497,7 +501,7 @@ async function fetchWholeCatalog<T extends { categoryId: string }>(
   };
   try {
     return await fetchCatalogPartitions(
-      accountId, resource, context, fetchItems, fetchCategories, itemId, previous,
+      accountId, resource, context, fetchItems, fetchCategories, itemId, previous, skipItemWrite,
     );
   } finally {
     clearTimeout(timer);
@@ -528,6 +532,7 @@ async function fetchCatalogPartitions<T extends { categoryId: string }>(
   fetchCategories: (signal?: AbortSignal) => Promise<Array<{ id: string }>>,
   itemId: (item: T) => string,
   previous?: T[],
+  skipItemWrite?: () => boolean,
 ): Promise<CatalogListResult<T>> {
   const { generation, signal } = context;
   const oldPartitions = new Map<string, T[]>();
@@ -570,6 +575,8 @@ async function fetchCatalogPartitions<T extends { categoryId: string }>(
           return fetchItems(categoryId, requestSignal);
         }),
         oldPartitions.get(categoryId),
+        false,
+        skipItemWrite,
       );
       partitions.set(categoryId, partition);
     }
@@ -645,23 +652,101 @@ async function fetchCatalogPartitions<T extends { categoryId: string }>(
   };
 }
 
+// One request for the whole list is far cheaper than one per category on a
+// rate-limited provider; each category still gets its own cached partition. An
+// empty or failed whole-list request falls back to the per-category requests.
+// The whole snapshot is cached as one record, so its partitions are not written.
+function wholeListFirst<T extends { categoryId: string }>(
+  fetchItems: (categoryId?: string, signal?: AbortSignal) => Promise<T[]>,
+): {
+  fetchItems: (categoryId: string, signal?: AbortSignal) => Promise<T[]>;
+  used: () => boolean;
+} {
+  let grouped: Promise<Map<string, T[]> | null> | undefined;
+  let used = false;
+  return {
+    used: () => used,
+    fetchItems: async (categoryId, signal) => {
+      if (!grouped) {
+        grouped = fetchItems(undefined, signal).then((items) => {
+          if (!items.length) return null;
+          const byCategory = new Map<string, T[]>();
+          for (const item of items) {
+            const list = byCategory.get(item.categoryId);
+            if (list) list.push(item);
+            else byCategory.set(item.categoryId, [item]);
+          }
+          used = true;
+          return byCategory;
+        }, () => null);
+      }
+      const byCategory = await grouped;
+      return byCategory ? byCategory.get(categoryId) ?? [] : fetchItems(categoryId, signal);
+    },
+  };
+}
+
+export interface LoadAllOptions {
+  /** Ask the provider for the whole list in one request before any category. */
+  wholeList?: boolean;
+}
+
+// Whole-list loads started ahead of time, so the first Search finds them done.
+// They live in memory because the snapshots can exceed the cache budget.
+const warmedLists = new Map<string, { generation: number; startedAt: number; promise: Promise<unknown> }>();
+
+function takeWarmed<T>(key: string): Promise<T[]> | null {
+  const entry = warmedLists.get(key);
+  if (!entry) return null;
+  if (entry.generation !== catalogCacheGeneration()
+      || Date.now() - entry.startedAt >= StorageService.getXtreamCatalogRefreshIntervalMs()) {
+    warmedLists.delete(key);
+    return null;
+  }
+  return entry.promise as Promise<T[]>;
+}
+
+function warm<T>(key: string, load: () => Promise<T[]>): void {
+  if (takeWarmed(key)) return;
+  const promise = load();
+  const entry = { generation: catalogCacheGeneration(), startedAt: Date.now(), promise };
+  warmedLists.set(key, entry);
+  promise.catch(() => {
+    if (warmedLists.get(key) === entry) warmedLists.delete(key);
+  });
+}
+
+export function clearPrefetchedCatalogs(): void {
+  warmedLists.clear();
+}
+
+export function prefetchSearchCatalog(account: PlaylistEntry): void {
+  warm(`${account.id}|vod_all`, () => loadAllVodStreams(account, undefined, { wholeList: true }));
+  warm(`${account.id}|series_all`, () => loadAllSeries(account, undefined, { wholeList: true }));
+}
+
 export function loadAllVodStreams(
   account: PlaylistEntry,
   signal?: AbortSignal,
+  options: LoadAllOptions = {},
 ): Promise<VodItem[]> {
+  const warmed = options.wholeList ? takeWarmed<VodItem>(`${account.id}|vod_all`) : null;
+  if (warmed) return warmed;
   return cachedList(
     `${account.id}|vod_all`,
     signal,
     (requestSignal, cached) => {
       const client = clientFor(account);
+      const whole = options.wholeList ? wholeListFirst(client.getVodStreams) : null;
       return fetchWholeCatalog(
         account.id,
         'vod_all',
         requestSignal,
-        client.getVodStreams,
+        whole ? whole.fetchItems : client.getVodStreams,
         client.getVodCategories,
         item => item.streamId,
         cached?.data,
+        whole?.used,
       );
     },
   );
@@ -670,20 +755,25 @@ export function loadAllVodStreams(
 export function loadAllSeries(
   account: PlaylistEntry,
   signal?: AbortSignal,
+  options: LoadAllOptions = {},
 ): Promise<SeriesItem[]> {
+  const warmed = options.wholeList ? takeWarmed<SeriesItem>(`${account.id}|series_all`) : null;
+  if (warmed) return warmed;
   return cachedList(
     `${account.id}|series_all`,
     signal,
     (requestSignal, cached) => {
       const client = clientFor(account);
+      const whole = options.wholeList ? wholeListFirst(client.getSeries) : null;
       return fetchWholeCatalog(
         account.id,
         'series_all',
         requestSignal,
-        client.getSeries,
+        whole ? whole.fetchItems : client.getSeries,
         client.getSeriesCategories,
         item => item.seriesId,
         cached?.data,
+        whole?.used,
       );
     },
   );

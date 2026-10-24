@@ -44,6 +44,7 @@ import {
 } from './services/parental-control';
 import { setDisplayTz } from './utils/time';
 import { createExitGuard } from './utils/exit-guard';
+import { prefetchSearchCatalog } from './services/xtream-catalog';
 import { initTheme, applyTheme, applyOverlayStyle, applyTextSize } from './services/theme-service';
 import { applyAnimationMode } from './services/motion-service';
 import { channelKey } from './utils/channel';
@@ -412,6 +413,7 @@ class App {
     this.handleLaunchParams(this.coldLaunchParams());
     // Spawning the service process can synchronously stall Luna on a cold TV.
     // Keep LAN setup off the critical path so cached channels render first.
+    this.scheduleSearchCatalogPrefetch();
     const bundledServiceReady = earlyServiceStart ?? this.startBundledService();
     void bundledServiceReady
       .then((started) => started ? this.finishBundledServiceInit() : undefined)
@@ -470,6 +472,15 @@ class App {
       );
       return false;
     }
+  }
+
+  // Search needs the whole Movies and Series lists; loading them in the
+  // background once the channels are up keeps the first Search from waiting.
+  private scheduleSearchCatalogPrefetch(): void {
+    setTimeout(() => {
+      const account = this.activeXtreamAccount();
+      if (account && document.visibilityState === 'visible') prefetchSearchCatalog(account);
+    }, CONFIG.SEARCH.CATALOG_PREFETCH_DELAY_MS);
   }
 
   private async exitApp(): Promise<void> {

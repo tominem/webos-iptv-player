@@ -516,8 +516,8 @@ export class Search {
 
   private async fetchCatalog(account: PlaylistEntry, signal: AbortSignal): Promise<CatalogSources> {
     const [vod, series] = await Promise.all([
-      captureCatalogLoad(loadAllVodStreams(account, signal)),
-      captureCatalogLoad(loadAllSeries(account, signal)),
+      captureCatalogLoad(loadAllVodStreams(account, signal, { wholeList: true })),
+      captureCatalogLoad(loadAllSeries(account, signal, { wholeList: true })),
     ]);
     if (signal.aborted || this.account?.id !== account.id
       || this.catalogController?.signal !== signal) return { movies: false, series: false };

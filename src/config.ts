@@ -141,6 +141,8 @@ export const CONFIG = {
     // Largest share of the free cache room one stored index may take.
     INDEX_BUDGET_SHARE: 0.1,
     INDEX_WRITE_TIMEOUT_MS: 5000,
+    // Wait this long after start before loading the Movies and Series lists for Search.
+    CATALOG_PREFETCH_DELAY_MS: 20 * 1000,
     // After a search index attempt or a rebuild of a lost index fails, its
     // queries search on the main thread for this long before the worker is
     // tried again.
