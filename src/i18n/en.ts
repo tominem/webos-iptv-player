@@ -202,6 +202,7 @@ export const EN_MESSAGES = {
   'player.retryingCatchup': 'Retrying catch-up…',
   'player.streamError': 'Playback error — trying the next channel…',
   'player.streamErrorReason': '{reason} — trying the next channel…',
+  'player.reasonReconnecting': '{reason} — reconnecting ({attempt}/{total})…',
   'player.unableToPlayReason': 'Unable to play this video: {reason}.',
   'player.failure.offline': 'Channel offline',
   'player.failure.denied': 'Provider refused access',

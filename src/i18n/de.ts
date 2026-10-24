@@ -200,6 +200,7 @@ export const DE_MESSAGES = {
   'player.retryingCatchup': 'Replay wird erneut geladen…',
   'player.streamError': 'Wiedergabefehler — nächster Sender wird versucht…',
   'player.streamErrorReason': '{reason} — nächster Sender wird versucht…',
+  'player.reasonReconnecting': '{reason} — Verbindung wird wiederhergestellt ({attempt}/{total})…',
   'player.unableToPlayReason': 'Dieses Video kann nicht abgespielt werden: {reason}.',
   'player.failure.offline': 'Sender offline',
   'player.failure.denied': 'Anbieter verweigert den Zugriff',

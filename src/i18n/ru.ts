@@ -212,6 +212,7 @@ export const RU_MESSAGES = {
   'player.retryingCatchup': 'Повторная загрузка из архива…',
   'player.streamError': 'Ошибка воспроизведения — переход к следующему каналу…',
   'player.streamErrorReason': '{reason} — переход к следующему каналу…',
+  'player.reasonReconnecting': '{reason} — повторное подключение ({attempt}/{total})…',
   'player.unableToPlayReason': 'Не удалось воспроизвести это видео: {reason}.',
   'player.failure.offline': 'Канал не вещает',
   'player.failure.denied': 'Провайдер отказал в доступе',

@@ -194,6 +194,7 @@ export const ZH_CN_MESSAGES = {
   'player.retryingCatchup': '正在重试回看…',
   'player.streamError': '播放出错，正在尝试下一个频道…',
   'player.streamErrorReason': '{reason}，正在尝试下一个频道…',
+  'player.reasonReconnecting': '{reason}，正在重新连接（{attempt}/{total}）…',
   'player.unableToPlayReason': '无法播放此视频：{reason}。',
   'player.failure.offline': '频道离线',
   'player.failure.denied': '服务商拒绝访问',

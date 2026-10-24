@@ -212,6 +212,7 @@ export const PL_MESSAGES = {
   'player.retryingCatchup': 'Ponawianie odtwarzania programu…',
   'player.streamError': 'Błąd odtwarzania — próbuję włączyć następny kanał…',
   'player.streamErrorReason': '{reason} — próbuję włączyć następny kanał…',
+  'player.reasonReconnecting': '{reason} — ponowne łączenie ({attempt}/{total})…',
   'player.unableToPlayReason': 'Nie można odtworzyć tego materiału: {reason}.',
   'player.failure.offline': 'Kanał niedostępny u dostawcy',
   'player.failure.denied': 'Dostawca odmówił dostępu',

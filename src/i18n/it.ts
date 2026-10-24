@@ -198,6 +198,7 @@ export const IT_MESSAGES = {
   'player.retryingCatchup': 'Nuovo tentativo di replay…',
   'player.streamError': 'Errore di riproduzione — tentativo con il canale successivo…',
   'player.streamErrorReason': '{reason} — tentativo con il canale successivo…',
+  'player.reasonReconnecting': '{reason} — riconnessione ({attempt}/{total})…',
   'player.unableToPlayReason': 'Impossibile riprodurre questo video: {reason}.',
   'player.failure.offline': 'Canale non in onda',
   'player.failure.denied': 'Accesso rifiutato dal fornitore',

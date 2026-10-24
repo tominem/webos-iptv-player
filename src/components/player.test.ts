@@ -829,6 +829,99 @@ describe('Player live playback', () => {
     expect(playlistMock.getByIndex).toHaveBeenCalledWith(1);
   });
 
+  describe('a busy or refusing provider', () => {
+    beforeEach(() => {
+      // Reloading the stream replaces the element in its parent, so it needs a real one.
+      HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
+      HTMLMediaElement.prototype.pause = vi.fn();
+      HTMLMediaElement.prototype.load = vi.fn();
+      video = document.createElement('video');
+      container.appendChild(video);
+      player.init(video);
+    });
+
+    afterEach(() => {
+      vi.mocked(StorageService.getLiveReconnectAttempts).mockReturnValue(3);
+    });
+
+    const fail = async (): Promise<void> => {
+      const current = container.querySelector('video') ?? video;
+      Object.defineProperty(current, 'error', { configurable: true, value: { code: 4, message: '' } });
+      current.dispatchEvent(new Event('error'));
+      await vi.advanceTimersByTimeAsync(0);
+    };
+
+    it.each(['busy', 'denied'] as const)('retries the same channel five times on %s before moving on', async (reason) => {
+      diagnoseMock.mockResolvedValue({ reason, status: reason === 'busy' ? 429 : 403 });
+      vi.mocked(StorageService.getLiveReconnectAttempts).mockReturnValue(5);
+      playlistMock.channels = [{}, {}];
+      player.play(0);
+      await flush();
+      playlistMock.getByIndex.mockClear();
+      const label = reason === 'busy' ? 'Provider busy or connection limit reached' : 'Provider refused access';
+
+      for (let attempt = 1; attempt <= 5; attempt++) {
+        const before = container.querySelector('video') ?? video;
+        await fail();
+        expect(container.querySelector('#player-osd')?.textContent)
+          .toContain(`${label} — reconnecting (${attempt}/5)…`);
+        expect(playlistMock.getByIndex).not.toHaveBeenCalled();
+        await vi.advanceTimersByTimeAsync(CONFIG.PLAYER.ACCOUNT_RETRY_DELAY_MS);
+        expect(container.querySelector('video')).not.toBe(before); // the stream was loaded again
+      }
+
+      await fail();
+      expect(container.querySelector('#player-osd')?.textContent).toContain(`${label} — trying the next channel…`);
+      await vi.advanceTimersByTimeAsync(CONFIG.PLAYER.FAILURE_MESSAGE_MS);
+      expect(playlistMock.getByIndex).toHaveBeenCalledWith(1);
+    });
+
+    it('starts the count over when the user picks a channel', async () => {
+      diagnoseMock.mockResolvedValue({ reason: 'busy', status: 429 });
+      vi.mocked(StorageService.getLiveReconnectAttempts).mockReturnValue(5);
+      playlistMock.channels = [{}, {}];
+      player.play(0);
+      await flush();
+      await fail();
+      await vi.advanceTimersByTimeAsync(CONFIG.PLAYER.ACCOUNT_RETRY_DELAY_MS);
+      await fail();
+      expect(container.querySelector('#player-osd')?.textContent).toContain('(2/5)');
+
+      player.play(0);
+      await flush();
+      await fail();
+
+      expect(container.querySelector('#player-osd')?.textContent).toContain('(1/5)');
+    });
+
+    it('follows the Live reconnect attempts setting, and 0 moves on at once', async () => {
+      diagnoseMock.mockResolvedValue({ reason: 'busy', status: 429 });
+      vi.mocked(StorageService.getLiveReconnectAttempts).mockReturnValue(0);
+      playlistMock.channels = [{}, {}];
+      player.play(0);
+      await flush();
+      playlistMock.getByIndex.mockClear();
+
+      await fail();
+      await vi.advanceTimersByTimeAsync(CONFIG.PLAYER.FAILURE_MESSAGE_MS);
+
+      expect(playlistMock.getByIndex).toHaveBeenCalledWith(1);
+    });
+
+    it('does not retry a channel that is offline', async () => {
+      diagnoseMock.mockResolvedValue({ reason: 'offline', status: 404 });
+      playlistMock.channels = [{}, {}];
+      player.play(0);
+      await flush();
+      playlistMock.getByIndex.mockClear();
+
+      await fail();
+      await vi.advanceTimersByTimeAsync(CONFIG.PLAYER.FAILURE_MESSAGE_MS);
+
+      expect(playlistMock.getByIndex).toHaveBeenCalledWith(1);
+    });
+  });
+
   it('keeps the generic message when the diagnosis cannot tell', async () => {
     playlistMock.channels = [{}, {}];
     player.play(0);

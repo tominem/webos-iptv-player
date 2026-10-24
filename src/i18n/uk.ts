@@ -212,6 +212,7 @@ export const UK_MESSAGES = {
   'player.retryingCatchup': 'Повторне завантаження з ТВ-архіву…',
   'player.streamError': 'Помилка відтворення — перехід до наступного каналу…',
   'player.streamErrorReason': '{reason} — перехід до наступного каналу…',
+  'player.reasonReconnecting': '{reason} — повторне підключення ({attempt}/{total})…',
   'player.unableToPlayReason': 'Не вдалося відтворити це відео: {reason}.',
   'player.failure.offline': 'Канал не мовить',
   'player.failure.denied': 'Провайдер відмовив у доступі',

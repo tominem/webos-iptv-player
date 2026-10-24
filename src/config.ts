@@ -53,6 +53,9 @@ export const CONFIG = {
     FAILURE_DIAGNOSIS_TIMEOUT_MS: 2000,
     FAILURE_MESSAGE_MS: 2000,
     FAILURE_DIAGNOSIS_BYTES: 188 * 700,
+    // The pause between tries of the same channel when the provider is busy or
+    // refuses the account; the number of tries is "Live reconnect attempts".
+    ACCOUNT_RETRY_DELAY_MS: 5000,
     BUFFER_LENGTH: 30,
     MANIFEST_TIMEOUT: 5000,
     MANIFEST_MAX_BYTES: 256 * 1024,

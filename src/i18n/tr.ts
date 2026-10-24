@@ -194,6 +194,7 @@ export const TR_MESSAGES = {
   'player.retryingCatchup': 'Geri İzle yeniden deneniyor…',
   'player.streamError': 'Oynatma hatası — sonraki kanal deneniyor…',
   'player.streamErrorReason': '{reason} — sonraki kanal deneniyor…',
+  'player.reasonReconnecting': '{reason} — yeniden bağlanıyor ({attempt}/{total})…',
   'player.unableToPlayReason': 'Bu video oynatılamıyor: {reason}.',
   'player.failure.offline': 'Kanal yayında değil',
   'player.failure.denied': 'Sağlayıcı erişimi reddetti',

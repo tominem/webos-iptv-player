@@ -200,6 +200,7 @@ export const ES_MESSAGES = {
   'player.retryingCatchup': 'Reintentando la reproducción en catch-up…',
   'player.streamError': 'Error de reproducción — probando el siguiente canal…',
   'player.streamErrorReason': '{reason} — probando el siguiente canal…',
+  'player.reasonReconnecting': '{reason} — reconectando ({attempt}/{total})…',
   'player.unableToPlayReason': 'No se puede reproducir este video: {reason}.',
   'player.failure.offline': 'Canal fuera del aire',
   'player.failure.denied': 'El proveedor rechazó el acceso',

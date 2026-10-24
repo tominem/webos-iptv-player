@@ -200,6 +200,7 @@ export const FR_MESSAGES = {
   'player.retryingCatchup': 'Nouvelle tentative de lecture du replay…',
   'player.streamError': 'Erreur de lecture — essai de la chaîne suivante…',
   'player.streamErrorReason': '{reason} — essai de la chaîne suivante…',
+  'player.reasonReconnecting': '{reason} — reconnexion ({attempt}/{total})…',
   'player.unableToPlayReason': 'Impossible de lire cette vidéo : {reason}.',
   'player.failure.offline': 'Chaîne hors service',
   'player.failure.denied': 'Accès refusé par le fournisseur',

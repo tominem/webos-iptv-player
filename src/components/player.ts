@@ -99,6 +99,8 @@ export class Player {
   // The source the pipeline was last asked to load, for diagnosing its failure.
   private streamUrl = '';
   private streamUserAgent: string | undefined;
+  private accountRetries = 0;
+  private accountRetryChannel: string | null = null;
   private errorRetryPending = false;
   // Manual A/V resync (catch-up / VOD): true from the resync seek until playback
   // resumes, gating the "Resyncing…" message and debouncing repeat presses.
@@ -603,6 +605,8 @@ export class Player {
     this.playbackActive = true;
     this.stallWatchdog.stop();
     this.startPlaybackGeneration();
+    this.accountRetries = 0;
+    this.accountRetryChannel = null;
 
     // Save progress for the outgoing catch-up session (channel switch, stopping catch-up).
     // Skip when resuming from suspend: catchupSuspendPos >= 0 means the element is fresh
@@ -965,10 +969,42 @@ export class Player {
 
   // The reason the stream last loaded fails, worded for the screen; null when
   // the diagnosis cannot tell.
-  private async failureLabel(): Promise<string | null> {
-    if (!this.streamUrl) return null;
+  private async diagnoseFailure(): Promise<{ reason: StreamFailure; label: string | null }> {
+    if (!this.streamUrl) return { reason: 'unknown', label: null };
     const { reason } = await diagnoseStream(this.streamUrl, this.streamUserAgent);
-    return reason === 'unknown' ? null : t(`player.failure.${reason satisfies Exclude<StreamFailure, 'unknown'>}`);
+    return {
+      reason,
+      label: reason === 'unknown' ? null : t(`player.failure.${reason satisfies Exclude<StreamFailure, 'unknown'>}`),
+    };
+  }
+
+  // A refusal or overload belongs to the account, not the channel, so the same
+  // channel is tried again, as many times as "Live reconnect attempts" allows,
+  // before the next one is. A stream that never starts skips the stall
+  // watchdog's reconnects, so this covers what they cannot. True when a retry
+  // is scheduled.
+  private retryAccountFailure(label: string): boolean {
+    const channel = this.currentChannel;
+    if (!channel || this.catchupInfo || this.vod) return false;
+    const key = channelKey(channel);
+    if (this.accountRetryChannel !== key) {
+      this.accountRetryChannel = key;
+      this.accountRetries = 0;
+    }
+    const total = StorageService.getLiveReconnectAttempts();
+    if (this.accountRetries >= total) {
+      this.accountRetryChannel = null;
+      return false;
+    }
+    const attempt = ++this.accountRetries;
+    log.info('Retrying the channel after an account-level failure', 'event=playback.account.retry',
+      this.playbackLabel(), `attempt=${String(attempt)}`, `total=${String(total)}`);
+    this.osd.updateMessage(t('player.reasonReconnecting', { reason: label, attempt, total }));
+    this.errorAdvanceTimer = setTimeout(() => {
+      this.errorAdvanceTimer = null;
+      this.reloadCurrentStream();
+    }, CONFIG.PLAYER.ACCOUNT_RETRY_DELAY_MS);
+    return true;
   }
 
   /**
@@ -1030,7 +1066,7 @@ export class Player {
       this.vod = null;            // so stop() won't overwrite/wipe the resume point on error
       log.warn('VOD playback error', 'event=playback.vod.error',
         this.playbackLabel(), v.title);
-      const label = this.failureLabel().catch(() => null);
+      const label = this.diagnoseFailure().then(result => result.label, () => null);
       this.stop();
       v.onBack();
       void label.then(reason => showToast(
@@ -1112,10 +1148,11 @@ export class Player {
       advance,
       CONFIG.PLAYER.FAILURE_DIAGNOSIS_TIMEOUT_MS + CONFIG.PLAYER.FAILURE_MESSAGE_MS,
     );
-    void this.failureLabel().catch(() => null).then(reason => {
+    void this.diagnoseFailure().catch(() => ({ reason: 'unknown' as const, label: null })).then(({ reason, label }) => {
       if (generation !== this.playbackGeneration || this.errorAdvanceTimer === null) return;
       clearTimeout(this.errorAdvanceTimer);
-      if (reason) this.osd.updateMessage(t('player.streamErrorReason', { reason }));
+      if (label && (reason === 'busy' || reason === 'denied') && this.retryAccountFailure(label)) return;
+      if (label) this.osd.updateMessage(t('player.streamErrorReason', { reason: label }));
       this.errorAdvanceTimer = setTimeout(advance, CONFIG.PLAYER.FAILURE_MESSAGE_MS);
     });
   }
@@ -1135,6 +1172,8 @@ export class Player {
     if (!this.currentChannel || this.catchupInfo || this.vod
         || this.healthSuccessGeneration === this.playbackGeneration) return;
     this.healthSuccessGeneration = this.playbackGeneration;
+    this.accountRetries = 0;
+    this.accountRetryChannel = null;
     const latencyMs = Math.max(0, Date.now() - this.healthStartedAt);
     void ChannelHealthService.recordPlaybackSuccess(this.currentChannel, latencyMs)
       .then(changed => {
