@@ -1792,6 +1792,82 @@ describe('Search', () => {
     expect(calls.filter(([task]) => task === 'search.query')).toHaveLength(1);
   });
 
+  it('shows results from the finished sources while only programmes are pending', async () => {
+    playlistMock.channels = [chan('Alpha')];
+    const { view } = await openWith();
+    const internals = view as unknown as { pendingIndex: unknown };
+    internals.pendingIndex = { channels: false, programmes: true, catalog: false };
+
+    await view.setQuery('alpha');
+
+    await vi.waitFor(() => expect(container.querySelector('.catalog-tile[data-channel-index="0"]')).not.toBeNull());
+    expect(container.textContent).toContain('Preparing search…');
+    expect(container.textContent).not.toContain('No results');
+  });
+
+  it('shows the focused channel\'s programmes in the Programs panel', async () => {
+    const later = (offset: number) => [Date.now() + offset * 3600000, Date.now() + (offset + 1) * 3600000] as const;
+    playlistMock.channels = [chan('Alpha One'), chan('Alpha Two')];
+    playlistMock.indexOf.mockImplementation((channel: unknown) => playlistMock.channels.indexOf(channel as never));
+    epgMock.programmes = {
+      'Alpha One': [prog('Show One', ...later(1))],
+      'Alpha Two': [prog('Show Two', ...later(1)), prog('Alpha Special', ...later(2))],
+    };
+    const { view } = await openWith();
+    await view.setQuery('alpha');
+    await vi.waitFor(() => expect(container.querySelectorAll('[data-channel-index]').length).toBe(2));
+    const nav = (view as unknown as { nav: { focus(el: HTMLElement | null): void } }).nav;
+    const rows = (): string[] => Array.from(
+      container.querySelectorAll('.search-program-row .search-program-title'), row => row.textContent ?? '',
+    );
+
+    nav.focus(container.querySelector('[data-channel-index="0"]'));
+    expect(rows()).toEqual(['Show One']);
+
+    // Only one of this channel's programmes matches the query, so only it shows.
+    nav.focus(container.querySelector('[data-channel-index="1"]'));
+    expect(rows()).toEqual(['Alpha Special']);
+  });
+
+  it('keeps the shown results in place when the programmes finish indexing', async () => {
+    playlistMock.channels = [chan('Alpha')];
+    const { view } = await openWith();
+    const internals = view as unknown as {
+      pendingIndex: unknown;
+      workerSession: number;
+      indexSettled(sessionId: number, ...sources: string[]): void;
+    };
+    internals.pendingIndex = { channels: false, programmes: true, catalog: false };
+    await view.setQuery('alpha');
+    await vi.waitFor(() => expect(container.querySelector('.catalog-tile[data-channel-index="0"]')).not.toBeNull());
+    const tile = container.querySelector('.catalog-tile[data-channel-index="0"]');
+    const blanked = vi.fn();
+    const observer = new MutationObserver(() => {
+      if (!container.querySelector('.catalog-tile[data-channel-index="0"]')) blanked();
+    });
+    observer.observe(container, { childList: true, subtree: true });
+
+    internals.indexSettled(internals.workerSession, 'programmes');
+    await new Promise(resolve => setTimeout(resolve, 50));
+    observer.disconnect();
+
+    expect(container.querySelector('.catalog-tile[data-channel-index="0"]')).toBe(tile);
+    expect(blanked).not.toHaveBeenCalled();
+    expect(container.textContent).not.toContain('Preparing search…');
+  });
+
+  it('keeps the preparing hint, not No results, when nothing matches yet and programmes are pending', async () => {
+    playlistMock.channels = [chan('Alpha')];
+    const { view } = await openWith();
+    const internals = view as unknown as { pendingIndex: unknown };
+    internals.pendingIndex = { channels: false, programmes: true, catalog: false };
+
+    await view.setQuery('zzz');
+
+    await vi.waitFor(() => expect(container.textContent).toContain('Preparing search…'));
+    expect(container.textContent).not.toContain('No results');
+  });
+
   it('focuses a result that appears only once the catalog loads', async () => {
     let finishVod!: (items: unknown[]) => void;
     catalogMock.loadAllVodStreams.mockReturnValue(new Promise((resolve) => { finishVod = resolve; }));

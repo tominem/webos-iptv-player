@@ -141,6 +141,8 @@ export const CONFIG = {
     // Largest share of the free cache room one stored index may take.
     INDEX_BUDGET_SHARE: 0.1,
     INDEX_WRITE_TIMEOUT_MS: 5000,
+    // Documents the worker folds before yielding to queued queries.
+    FOLD_SLICE_SIZE: 1000,
     // Wait this long after start before loading the Movies and Series lists for Search.
     CATALOG_PREFETCH_DELAY_MS: 20 * 1000,
     // After a search index attempt or a rebuild of a lost index fails, its

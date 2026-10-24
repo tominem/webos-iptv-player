@@ -1,6 +1,7 @@
 import {
   foldSearchText,
   prepareFoldedSearchItem,
+  splitSearchTokens,
   rankPreparedNamesTopK,
   rankPreparedTopK,
   type PreparedNameSearchIndex,
@@ -66,6 +67,9 @@ export class SearchWorkerIndex {
   private movies = emptyNames();
   private series = emptyNames();
   private pending: Promise<void> | null = null;
+  // Folding a large source yields between slices; queries run meanwhile
+  // against the sources already indexed instead of waiting behind it.
+  private folding = false;
   private staging: Partial<Record<SearchIndexSource, { documents: string[][]; names: string[] }>> = {};
   // The latest index of each source record, by key prefix, for this worker's life.
   private readonly sources = new Map<string, SourceIndex>();
@@ -80,6 +84,7 @@ export class SearchWorkerIndex {
   }
 
   query(request: SearchQueryRequest): SearchQueryResponse | null | Promise<SearchQueryResponse | null> {
+    if (this.folding) return this.runQuery(request);
     return this.serialize(() => this.runQuery(request));
   }
 
@@ -141,7 +146,15 @@ export class SearchWorkerIndex {
       return { accepted: false };
     }
 
-    if (request.chunk && !this.applyChunk(request.chunk)) return { accepted: false };
+    const staged = request.chunk ? this.applyChunk(request.chunk) : true;
+    if (staged instanceof Promise) {
+      return staged.then(accepted => accepted ? this.afterChunk(request) : { accepted: false });
+    }
+    if (!staged) return { accepted: false };
+    return this.afterChunk(request);
+  }
+
+  private afterChunk(request: SearchIndexRequest): SearchIndexResponse | Promise<SearchIndexResponse> {
     if (!request.cachedChannels && !request.cachedProgrammes
         && !request.cachedMovies && !request.cachedSeries) {
       return { accepted: true };
@@ -311,7 +324,7 @@ export class SearchWorkerIndex {
   // Channels and programmes are empty from their first slice until their
   // last, as the page already ranks against its new rows. The catalog keeps
   // its previous names until the swap, which the page tracks per source.
-  private applyChunk(chunk: SearchIndexChunk): boolean {
+  private applyChunk(chunk: SearchIndexChunk): boolean | Promise<boolean> {
     const { source } = chunk;
     if (chunk.start === 0) {
       if (source === 'channels' || source === 'programmes') this.clear(source);
@@ -329,10 +342,52 @@ export class SearchWorkerIndex {
     if (count + incoming.length < chunk.total) return true;
     delete this.staging[source];
     if (source === 'channels') this.setChannels(staged.documents);
-    else if (source === 'programmes') this.programmes = prepareFolded(foldDocuments(staged.documents));
+    else if (source === 'programmes') {
+      if (staged.documents.length > CONFIG.SEARCH.FOLD_SLICE_SIZE) return this.foldProgrammes(staged.documents);
+      this.programmes = prepareFolded(foldDocuments(staged.documents));
+    }
     else if (source === 'movies') this.movies = foldedNames(staged.names.map(foldSearchText));
     else this.series = foldedNames(staged.names.map(foldSearchText));
     return true;
+  }
+
+  // Programme documents repeat their channel, category, and often their
+  // description, so each distinct text is folded and tokenized once.
+  private async foldProgrammes(documents: string[][]): Promise<boolean> {
+    const folds = new Map<string, string>();
+    const splits = new Map<string, string[]>();
+    const fold = (value: string): string => {
+      let folded = folds.get(value);
+      if (folded === undefined) {
+        folded = foldSearchText(value);
+        folds.set(value, folded);
+      }
+      return folded;
+    };
+    const split = (value: string): string[] => {
+      let tokens = splits.get(value);
+      if (!tokens) {
+        tokens = splitSearchTokens(value);
+        splits.set(value, tokens);
+      }
+      return tokens;
+    };
+    const prepared: PreparedSearchItem<number>[] = new Array(documents.length);
+    this.folding = true;
+    try {
+      const slice = CONFIG.SEARCH.FOLD_SLICE_SIZE;
+      for (let start = 0; start < documents.length; start += slice) {
+        const end = Math.min(documents.length, start + slice);
+        for (let index = start; index < end; index++) {
+          prepared[index] = prepareFoldedSearchItem(index, documents[index].map(fold), split);
+        }
+        if (end < documents.length) await new Promise<void>(resolve => setTimeout(resolve, 0));
+      }
+      this.programmes = prepared;
+      return true;
+    } finally {
+      this.folding = false;
+    }
   }
 
   private clear(source: SearchIndexSource): void {

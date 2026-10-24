@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { CONFIG } from '../config';
 import { SearchWorkerIndex } from './search-index';
 
 interface PostedSources {
@@ -152,5 +153,49 @@ describe('SearchWorkerIndex', () => {
       sessionId: 2,
       chunk: { source: 'series', start: 1, total: 2, names: ['Alpha 2'] },
     })).toEqual({ accepted: false });
+  });
+
+  describe('a large programme source', () => {
+    const slice = CONFIG.SEARCH.FOLD_SLICE_SIZE;
+    const programmes = Array.from({ length: slice * 2 + 5 }, (_, i) => [
+      i % 2 ? 'Alpha Show' : 'Bravo Show', 'News', `Episode ${i}`, 'Channel One', 'Group',
+    ]);
+
+    function start(index: SearchWorkerIndex): Promise<unknown> {
+      post(index, 1, { channels: [['Alpha Channel', 'News'], ['Bravo Channel', 'News']] });
+      return index.index({
+        sessionId: 1,
+        chunk: { source: 'programmes', start: 0, total: programmes.length, documents: programmes },
+      }) as Promise<unknown>;
+    }
+
+    it('answers queries from the other sources while it is still folding', async () => {
+      const index = new SearchWorkerIndex();
+      const folding = start(index);
+
+      const early = index.query({ sessionId: 1, query: 'alpha', limit: 10, includeCatalog: false });
+      expect(early).toMatchObject({
+        channels: { indices: [0] },
+        programmes: { indices: [] },
+      });
+
+      expect(await folding).toEqual({ accepted: true });
+      const done = await index.query({ sessionId: 1, query: 'alpha', limit: 5, includeCatalog: false });
+      expect((done as { programmes: { indices: number[] } }).programmes.indices).toHaveLength(5);
+    });
+
+    it('ranks like the unmemoized fold', async () => {
+      const index = new SearchWorkerIndex();
+      await start(index);
+      const small = new SearchWorkerIndex();
+      post(small, 1, { channels: [['Alpha Channel', 'News']], programmes: programmes.slice(0, slice) });
+
+      const query = { sessionId: 1, query: 'episode 7', limit: 3, includeCatalog: false };
+      const large = await index.query(query) as { programmes: { indices: number[] } };
+      const reference = await small.query(query) as { programmes: { indices: number[] } };
+      expect(large.programmes.indices.filter(i => i < slice).sort()).toEqual(
+        reference.programmes.indices.filter(i => i < slice).sort(),
+      );
+    });
   });
 });

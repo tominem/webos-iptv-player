@@ -162,7 +162,12 @@ export class Search {
   private loadedFor: string | null = null;
   private catalogExpiresAt = 0;
   private visibleChannels: Channel[] = [];
+  // What the Programs panel shows: the focused channel's programmes when a
+  // channel result holds the focus, else the query's own programme matches.
   private visiblePrograms: ProgramResult[] = [];
+  private queryPrograms: ProgramResult[] = [];
+  private channelFocus: number | null = null;
+  private programsByChannel: { source: ProgramResult[]; byChannel: Map<number, ProgramResult[]> } | null = null;
   private visibleMovies: VodItem[] = [];
   private visibleSeries: SeriesItem[] = [];
   private resumePrompt = new CatchupResumePrompt('prompt.search');
@@ -234,7 +239,7 @@ export class Search {
       defaultKey: () => this.navKey(),
       resolve: (key) => this.resolveKey(key),
     });
-    this.nav = new SpatialNav(container, undefined, { scope: this.focusScope });
+    this.nav = new SpatialNav(container, el => this.onNavFocus(el), { scope: this.focusScope });
     // Activate the result under the pointer by coordinate hit-test, so it lands
     // here regardless of D-pad focus; the container is marked `data-self-activate`
     // so the global click handler skips this subtree and doesn't double-fire.
@@ -674,16 +679,35 @@ export class Search {
     return 'persisted';
   }
 
+  // The programmes are the largest source and arrive last; channels and the
+  // catalog can answer a query before they do.
+  private showingResults(): boolean {
+    return this.visibleChannels.length > 0 || this.visiblePrograms.length > 0
+      || this.visibleMovies.length > 0 || this.visibleSeries.length > 0;
+  }
+
+  private onlyProgrammesPending(): boolean {
+    const pending = this.pendingIndex;
+    return !!pending && pending.programmes && !pending.channels && !pending.catalog;
+  }
+
   private indexSettled(sessionId: number, ...sources: Array<keyof PendingIndex>): void {
     const pending = this.pendingIndex;
     if (!pending || sessionId !== this.workerSession) return;
     for (const source of sources) pending[source] = false;
-    if (pending.channels || pending.programmes || pending.catalog) return;
+    if (pending.channels || pending.programmes || pending.catalog) {
+      if (this.onlyProgrammesPending() && this.active && this.query.trim()) {
+        void this.startQuery(++this.queryGeneration);
+      }
+      return;
+    }
     this.pendingIndex = null;
     this.logIndexReady(this.indexMode());
     if (!this.workerIndexLost) this.markWorkerIndexReady(this.account);
     if (!this.active) return;
-    if (this.query.trim()) void this.startQuery(++this.queryGeneration);
+    // Results already shown stay put while the full index refines them, so
+    // the focused card and scroll position survive.
+    if (this.query.trim()) void this.startQuery(++this.queryGeneration, this.showingResults());
     else this.render();
   }
 
@@ -1117,7 +1141,7 @@ export class Search {
     const query = this.query;
     const sessionId = this.workerSession;
     if (!query.trim()) return;
-    if (this.pendingIndex) {
+    if (this.pendingIndex && !this.onlyProgrammesPending()) {
       // The ready index runs this query; until then the hint stands in.
       if (!this.indexStats.hintAt) this.indexStats.hintAt = Date.now();
       this.render();
@@ -1371,15 +1395,66 @@ export class Search {
     series: SeriesItem[],
   ): void {
     this.visibleChannels = itemsAt(PlaylistService.channels, response.channels.indices);
-    this.visiblePrograms = itemsAt(this.programIndex, response.programmes.indices);
+    this.queryPrograms = itemsAt(this.programIndex, response.programmes.indices);
+    this.visiblePrograms = this.panelPrograms();
     this.visibleMovies = itemsAt(vod, response.movies.indices);
     this.visibleSeries = itemsAt(series, response.series.indices);
     this.hasMoreResults = response.channels.hasMore || response.programmes.hasMore
       || response.movies.hasMore || response.series.hasMore;
   }
 
+  private programsOf(channelIndex: number): ProgramResult[] {
+    if (this.programsByChannel?.source !== this.programIndex) {
+      const byChannel = new Map<number, ProgramResult[]>();
+      for (const result of this.programIndex) {
+        const list = byChannel.get(result.channelIndex);
+        if (list) list.push(result);
+        else byChannel.set(result.channelIndex, [result]);
+      }
+      this.programsByChannel = { source: this.programIndex, byChannel };
+    }
+    return this.programsByChannel.byChannel.get(channelIndex) ?? [];
+  }
+
+  private panelPrograms(): ProgramResult[] {
+    const index = this.channelFocus;
+    if (index === null || !this.visibleChannels.some(ch => PlaylistService.indexOf(ch) === index)) {
+      return this.queryPrograms;
+    }
+    const own = this.programsOf(index);
+    if (!own.length) return this.queryPrograms;
+    const matches = rankPreparedTopK(
+      prepareSearchItems(own, p => [p.programme.title, p.programme.category, p.programme.description]),
+      this.query,
+      this.resultLimit,
+    ).items;
+    if (matches.length) return matches;
+    const now = Date.now();
+    return own.filter(p => p.programme.stop.getTime() > now).slice(0, this.resultLimit);
+  }
+
+  // A channel result took the focus: the Programs panel follows it.
+  private onNavFocus(el: HTMLElement | null): void {
+    const raw = el?.dataset.channelIndex;
+    if (raw === undefined || !this.active) return;
+    const index = parseInt(raw, 10);
+    if (index === this.channelFocus) return;
+    this.channelFocus = index;
+    const next = this.panelPrograms();
+    if (next.length === this.visiblePrograms.length
+        && next.every((result, i) => result === this.visiblePrograms[i])) return;
+    this.visiblePrograms = next;
+    this.programVirtualizer.setScrollOffset(0);
+    this.container.querySelectorAll<HTMLElement>('[data-search-virtual="programmes"]').forEach((list) => {
+      this.scrollGuard.syncOffset(list, 'vertical', 0);
+    });
+    this.render();
+  }
+
   private clearResults(): void {
     this.visibleChannels = [];
+    this.queryPrograms = [];
+    this.channelFocus = null;
     this.visiblePrograms = [];
     this.visibleMovies = [];
     this.visibleSeries = [];
@@ -1578,14 +1653,16 @@ export class Search {
 
     // Xtream: horizontal poster rails for catalog results. M3U-only channels and
     // EPG programs use compact rows so their metadata remains readable.
+    const programmesLoading = this.onlyProgrammesPending();
     const resultsBody = !q
       ? html``
-      : this.pendingIndex
+      : this.pendingIndex && !programmesLoading
         ? html`<p class="catalog-hint search-empty">${t('search.preparing')}</p>`
       : this.queryPending
         ? html``
         : !hasResults
-        ? html`<p class="catalog-hint search-empty">${t('search.empty')}</p>`
+        ? html`<p class="catalog-hint search-empty">${
+          programmesLoading ? t('search.preparing') : t('search.empty')}</p>`
         : isXtream
           ? html`
                 ${this.visibleChannels.length
@@ -1628,7 +1705,10 @@ export class Search {
         hasMixedLists ? 'search-lists-mixed' : ''
       }" data-nav-container data-search-query="${q}"
            data-search-pending="${this.queryPending ? 'true' : 'false'}">
-        <div class="search-results">${resultsBody}</div>
+        <div class="search-results">${resultsBody}${
+          programmesLoading && hasResults
+            ? html`<p class="catalog-hint search-empty">${t('search.preparing')}</p>`
+            : ''}</div>
       </div>
     `);
     this.restoreVirtualOffsets();
