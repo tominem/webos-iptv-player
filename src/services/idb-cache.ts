@@ -134,7 +134,7 @@ let metadataPromise: Promise<void> | null = null;
 let mutationChain: Promise<void> = Promise.resolve();
 const accessTouches = new Map<string, number>();
 let storageEstimateCache: {
-  value: { usage: number | null; quota: number | null };
+  value: StorageEstimateResult;
   timestamp: number;
 } | null = null;
 let scheduledPlaylist: {
@@ -741,12 +741,46 @@ async function readEntryMeta(
   return isCacheEntryMeta(raw) ? raw : null;
 }
 
-async function storageEstimate(): Promise<{ usage: number | null; quota: number | null }> {
-  try {
-    // StorageManager is absent on webOS 4; guard before accessing it.
-    if (typeof navigator === 'undefined' || !navigator.storage?.estimate) {
-      return { usage: null, quota: null };
+interface StorageEstimateResult {
+  usage: number | null;
+  quota: number | null;
+  // Chromium 53's temporary-storage API: usage reads 0 and the backing store
+  // keeps a duplicate of every table file, so only a fraction of the quota is safe.
+  legacy?: boolean;
+}
+
+type LegacyStorage = {
+  queryUsageAndQuota(ok: (usage: number, quota: number) => void, fail: (error: unknown) => void): void;
+};
+
+function legacyStorageEstimate(): Promise<StorageEstimateResult> {
+  return new Promise((resolve) => {
+    const legacy = (navigator as Navigator & { webkitTemporaryStorage?: LegacyStorage })
+      .webkitTemporaryStorage;
+    if (!legacy?.queryUsageAndQuota) {
+      resolve({ usage: null, quota: null });
+      return;
     }
+    try {
+      legacy.queryUsageAndQuota(
+        (usage, quota) => resolve({
+          usage: typeof usage === 'number' ? usage : null,
+          quota: typeof quota === 'number' && quota > 0 ? quota : null,
+          legacy: true,
+        }),
+        () => resolve({ usage: null, quota: null }),
+      );
+    } catch {
+      resolve({ usage: null, quota: null });
+    }
+  });
+}
+
+async function storageEstimate(): Promise<StorageEstimateResult> {
+  try {
+    // StorageManager is absent on webOS 4 and 5; guard before accessing it.
+    if (typeof navigator === 'undefined') return { usage: null, quota: null };
+    if (!navigator.storage?.estimate) return await legacyStorageEstimate();
     // eslint-disable-next-line compat/compat
     const estimate = await navigator.storage.estimate();
     return {
@@ -758,7 +792,7 @@ async function storageEstimate(): Promise<{ usage: number | null; quota: number 
   }
 }
 
-async function cachedStorageEstimate(): Promise<{ usage: number | null; quota: number | null }> {
+async function cachedStorageEstimate(): Promise<StorageEstimateResult> {
   const now = Date.now();
   if (storageEstimateCache
       && now - storageEstimateCache.timestamp < STORAGE_ESTIMATE_TTL_MS) {
@@ -769,16 +803,16 @@ async function cachedStorageEstimate(): Promise<{ usage: number | null; quota: n
   return value;
 }
 
-function budgetForQuota(quota: number | null): number {
+function budgetForQuota(quota: number | null, legacy = false): number {
   if (quota === null || quota <= 0) return FALLBACK_BUDGET_BYTES;
-  return Math.min(Math.floor(quota * 0.5), MAX_BUDGET_BYTES);
+  return Math.min(Math.floor(quota * (legacy ? 0.25 : 0.5)), MAX_BUDGET_BYTES);
 }
 
 export async function getCacheUsage(): Promise<CacheUsageSummary> {
   const [metadata, estimate] = await Promise.all([readMetadata(), storageEstimate()]);
   return {
     ...metadata,
-    budgetBytes: budgetForQuota(estimate.quota),
+    budgetBytes: budgetForQuota(estimate.quota, estimate.legacy),
     originUsageBytes: estimate.usage,
     quotaBytes: estimate.quota,
   };
@@ -908,7 +942,7 @@ async function ensureCapacity(deltaBytes: number): Promise<void> {
   if (deltaBytes <= 0) return;
   const metadata = await readMetadata();
   const estimate = await cachedStorageEstimate();
-  const budgetBytes = budgetForQuota(estimate.quota);
+  const budgetBytes = budgetForQuota(estimate.quota, estimate.legacy);
   const cacheOver = metadata.total.bytes + deltaBytes - budgetBytes;
   const originOver = estimate.quota !== null && estimate.usage !== null
     ? estimate.usage + deltaBytes - Math.floor(estimate.quota * 0.8)
@@ -1699,7 +1733,7 @@ export function reserveSearchIndex(
     }
     const metadata = await readMetadata();
     const estimate = await cachedStorageEstimate();
-    let room = budgetForQuota(estimate.quota) - metadata.total.bytes;
+    let room = budgetForQuota(estimate.quota, estimate.legacy) - metadata.total.bytes;
     if (estimate.quota !== null && estimate.usage !== null) {
       room = Math.min(room, Math.floor(estimate.quota * 0.8) - estimate.usage);
     }

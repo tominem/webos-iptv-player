@@ -43,6 +43,7 @@ import {
   vodParentalRequest,
 } from './services/parental-control';
 import { setDisplayTz } from './utils/time';
+import { createExitGuard } from './utils/exit-guard';
 import { initTheme, applyTheme, applyOverlayStyle, applyTextSize } from './services/theme-service';
 import { applyAnimationMode } from './services/motion-service';
 import { channelKey } from './utils/channel';
@@ -72,6 +73,7 @@ class App {
   private views!: Record<ViewName, HTMLElement>;
   private viewStack: ViewName[] = ['channels'];
   private backPressTime = 0;
+  private readonly exitGuard = createExitGuard();
   private viewBeforeSearch: ViewName | null = null;
   // Catalog views a search result deep-linked into a detail; restored on the
   // way back to the view Search opened over.
@@ -471,8 +473,9 @@ class App {
   }
 
   private async exitApp(): Promise<void> {
-    if (!await this.flushUserData('exit')) {
-      this.backPressTime = 0;
+    if (this.exitGuard.shouldFlush(Date.now()) && !await this.flushUserData('exit')) {
+      this.exitGuard.recordFailure(Date.now());
+      this.backPressTime = Date.now();
       showToast(t('app.saveFailed'));
       return;
     }

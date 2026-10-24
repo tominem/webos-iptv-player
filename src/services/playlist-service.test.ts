@@ -654,10 +654,10 @@ http://host/series/u1/p1/301.mkv`);
     expect(channels.map(channel => channel.name)).toEqual(['Alpha', 'Bravo']);
   });
 
-  it('does not request live categories when get.php returns channels', async () => {
-    await PlaylistService.refresh();
-    expect(fetchTextMock.mock.calls.some(([url]) =>
-      url.includes('action=get_live_categories'))).toBe(false);
+  it('keeps get.php as the channel source when no live categories load', async () => {
+    const channels = await PlaylistService.refresh();
+    expect(vi.mocked(fetchAndParseM3U)).toHaveBeenCalledTimes(1);
+    expect(channels.map(channel => channel.name)).toEqual(['Alpha', 'Bravo']);
   });
 
   it.each([
@@ -899,17 +899,16 @@ http://host:8080/live/u1/p1/102.ts`;
     ]);
   }
 
-  function referencesPassed(): string[] | undefined {
-    const streams = vi.mocked(fetchAndParseM3U).mock.calls[0][2];
-    return streams?.map(stream => stream.streamId);
+  function streamIds(channels: Array<{ catchupStreamId?: string }>): Array<string | undefined> {
+    return channels.map(channel => channel.catchupStreamId);
   }
 
   beforeEach(() => {
     storageMock.liveCategorySnapshots.clear();
     PlaylistService.takeLiveCategoryNotices();
     liveStreams = [
-      { stream_id: 101, category_id: 'c1', tv_archive: 1, tv_archive_duration: 2 },
-      { stream_id: 102, category_id: 'c2', tv_archive: 1, tv_archive_duration: 3 },
+      { stream_id: 101, name: 'Alpha', category_id: 'c1', tv_archive: 1, tv_archive_duration: 2 },
+      { stream_id: 102, name: 'Bravo', category_id: 'c2', tv_archive: 1, tv_archive_duration: 3 },
     ];
     liveStreamsBody = null;
     categoriesBody = JSON.stringify([
@@ -929,11 +928,19 @@ http://host:8080/live/u1/p1/102.ts`;
     });
   });
 
-  it('loads every Live channel without a filter', async () => {
+  it('builds every Live channel from the Player API without downloading get.php', async () => {
     const channels = await PlaylistService.refresh();
     expect(channels.map(channel => channel.name)).toEqual(['Alpha', 'Bravo']);
-    expect(referencesPassed()).toEqual(['101', '102']);
-    expect(vi.mocked(fetchAndParseM3U).mock.calls[0][5]).toBeUndefined();
+    expect(channels.map(channel => channel.group)).toEqual(['NEWS', 'Sports']);
+    expect(streamIds(channels)).toEqual(['101', '102']);
+    expect(vi.mocked(fetchAndParseM3U)).not.toHaveBeenCalled();
+  });
+
+  it('falls back to get.php when the live categories do not load', async () => {
+    categoriesBody = '<html>nope</html>';
+    const channels = await PlaylistService.refresh();
+    expect(vi.mocked(fetchAndParseM3U)).toHaveBeenCalledTimes(1);
+    expect(channels.map(channel => channel.name)).toEqual(['Alpha', 'Bravo']);
   });
 
   it('narrows the Live references to included categories and keeps catch-up', async () => {
@@ -941,15 +948,13 @@ http://host:8080/live/u1/p1/102.ts`;
 
     const channels = await PlaylistService.refresh();
 
-    expect(referencesPassed()).toEqual(['101']);
+    expect(streamIds(channels)).toEqual(['101']);
     expect(channels.map(channel => channel.name)).toEqual(['Alpha']);
     expect(channels[0]).toMatchObject({
       catchup: 'xtream',
       catchupStreamId: '101',
       catchupDays: 2,
     });
-    expect(fetchTextMock.mock.calls.some(([url]) =>
-      url.includes('action=get_live_categories'))).toBe(false);
   });
 
   it('drops excluded categories but keeps a stream listed in another category', async () => {
@@ -960,7 +965,7 @@ http://host:8080/live/u1/p1/102.ts`;
     const channels = await PlaylistService.refresh();
 
     // 101 sits in c3 too, so it survives excluding c1 and c2.
-    expect(referencesPassed()).toEqual(['101']);
+    expect(streamIds(channels)).toEqual(['101']);
     expect(channels.map(channel => channel.name)).toEqual(['Alpha']);
   });
 

@@ -179,6 +179,25 @@ describe('idb-cache', () => {
     expect(catalogCacheGeneration()).toBe(before + 2);
   });
 
+  it('sizes the cache budget from the legacy temporary-storage quota', async () => {
+    const nav = navigator as Navigator & { webkitTemporaryStorage?: unknown };
+    const storageDescriptor = Object.getOwnPropertyDescriptor(navigator, 'storage');
+    Object.defineProperty(navigator, 'storage', { configurable: true, value: undefined });
+    Object.defineProperty(nav, 'webkitTemporaryStorage', {
+      configurable: true,
+      value: { queryUsageAndQuota: (ok: (usage: number, quota: number) => void) => ok(0, 20_000_000) },
+    });
+    try {
+      const usage = await getCacheUsage();
+      expect(usage.quotaBytes).toBe(20_000_000);
+      expect(usage.budgetBytes).toBe(5_000_000);
+    } finally {
+      delete nav.webkitTemporaryStorage;
+      if (storageDescriptor) Object.defineProperty(navigator, 'storage', storageDescriptor);
+      else delete (navigator as Navigator & { storage?: StorageManager }).storage;
+    }
+  });
+
   it('includes stream MIME records in the shared cache eviction pass', async () => {
     await setCachedStreamMime('http://host/live', 'video/mp2t');
     const storageDescriptor = Object.getOwnPropertyDescriptor(navigator, 'storage');
