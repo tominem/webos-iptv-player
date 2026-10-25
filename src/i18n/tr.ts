@@ -362,6 +362,8 @@ export const TR_MESSAGES = {
   'settings.animationHint': 'Temel, hafif animasyonları korur ancak eski TV’lerde ağır hareketleri kapatır. Azaltılmış, görsel efektleri korur fakat seçili öğeye hemen kayar. Tam, tek adımlarda akıcı kaydırır; basılı tutma ve tekrarlarda anında kaydırır.',
   'settings.liveReconnectAttempts': 'Canlı yayın yeniden bağlanma denemesi',
   'settings.liveReconnectHint': 'Hata veya takılma sonrası mevcut kanala yeniden bağlanır; olmazsa sonraki kanala geçer. Yeniden bağlanmadan geçmek için 0 seçin. Sonraki kanal açılışında uygulanır.',
+  'settings.accountRetryWait': 'Sağlayıcı meşgulken bekleme süresi',
+  'settings.accountRetryWaitHint': 'Sağlayıcı meşgulken veya erişimi reddettiğinde yeniden bağlanmadan önce beklenecek süre. Her yeni deneme bir öncekinin iki katı kadar bekler. Sonraki kanal açılışında uygulanır.',
   'settings.numberEntryOsdTimeout': 'Kanal numarası giriş süresi',
   'settings.numberEntryOsdTimeoutHint': 'Her rakamda süre yeniden başlar. Süre dolunca girilen kanal açılır.',
   'settings.playerOsdTimeout': 'Oynatıcı göstergesi gizlenme süresi',

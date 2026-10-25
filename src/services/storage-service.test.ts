@@ -3,8 +3,9 @@ import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { Channel } from '../types';
 import {
-  NUMBER_ENTRY_OSD_TIMEOUT_MS_OPTIONS,
+  ACCOUNT_RETRY_WAIT_MS_OPTIONS,
   LIVE_RECONNECT_ATTEMPT_OPTIONS,
+  NUMBER_ENTRY_OSD_TIMEOUT_MS_OPTIONS,
   PLAYER_OSD_TIMEOUT_MS_OPTIONS,
   REFRESH_INTERVAL_HOUR_OPTIONS,
   StorageService,
@@ -31,6 +32,25 @@ describe('StorageService', () => {
 
   it('returns an empty playlist list by default', () => {
     expect(StorageService.getPlaylists()).toEqual([]);
+  });
+
+  it('validates and persists the wait when the provider is busy', () => {
+    expect(StorageService.getAccountRetryWaitMs())
+      .toBe(CONFIG.PLAYER.DEFAULT_ACCOUNT_RETRY_WAIT_MS);
+    expect(ACCOUNT_RETRY_WAIT_MS_OPTIONS).toContain(CONFIG.PLAYER.DEFAULT_ACCOUNT_RETRY_WAIT_MS);
+    for (const wait of ACCOUNT_RETRY_WAIT_MS_OPTIONS) {
+      StorageService.setAccountRetryWaitMs(wait);
+      expect(StorageService.getAccountRetryWaitMs()).toBe(wait);
+    }
+    expect(() => StorageService.setAccountRetryWaitMs(7000)).toThrow(RangeError);
+    expect(() => StorageService.setAccountRetryWaitMs(NaN)).toThrow(RangeError);
+    StorageService.set('account_retry_wait_ms', '5000');
+    expect(StorageService.getAccountRetryWaitMs())
+      .toBe(CONFIG.PLAYER.DEFAULT_ACCOUNT_RETRY_WAIT_MS);
+    StorageService.setAccountRetryWaitMs(60000);
+    StorageService.clearAll();
+    expect(StorageService.getAccountRetryWaitMs())
+      .toBe(CONFIG.PLAYER.DEFAULT_ACCOUNT_RETRY_WAIT_MS);
   });
 
   it('validates and persists the live reconnect limit', () => {

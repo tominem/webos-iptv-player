@@ -370,6 +370,8 @@ export const EN_MESSAGES = {
   'settings.animationHint': 'Essential keeps lightweight animations but disables costly motion on older TVs. Reduced keeps visual effects but scrolls to the focused item immediately. Full uses smooth scrolling for single navigation steps; held or repeated navigation remains instant.',
   'settings.liveReconnectAttempts': 'Live reconnect attempts',
   'settings.liveReconnectHint': 'Reconnects the current live channel after an error or stall, then switches to the next channel if recovery fails. Set to 0 to switch without reconnecting. Applies from the next tune.',
+  'settings.accountRetryWait': 'Wait when provider is busy',
+  'settings.accountRetryWaitHint': 'How long to wait before reconnecting when the provider is busy or refuses access. Each retry waits twice as long as the one before. Applies from the next channel tune.',
   'settings.numberEntryOsdTimeout': 'Number Entry OSD timeout',
   'settings.numberEntryOsdTimeoutHint': 'Restarts after each digit. When it expires, the entered channel number is tuned.',
   'settings.playerOsdTimeout': 'Player OSD auto-hide delay',

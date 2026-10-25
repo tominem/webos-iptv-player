@@ -35,6 +35,7 @@ vi.mock('../services/storage-service', () => ({
     getSubtitleOffset: vi.fn(() => 0), setSubtitleOffset: vi.fn(),
     getChannelCycleMode: vi.fn(() => 'global'),
     getLiveReconnectAttempts: vi.fn(() => 3),
+    getAccountRetryWaitMs: vi.fn(() => 20000),
     getPlayerOsdTimeoutMs: vi.fn(() => 5000),
     getPlaylists: vi.fn(() => [{
       id: 'x',
@@ -842,6 +843,7 @@ describe('Player live playback', () => {
 
     afterEach(() => {
       vi.mocked(StorageService.getLiveReconnectAttempts).mockReturnValue(3);
+      vi.mocked(StorageService.getAccountRetryWaitMs).mockReturnValue(20000);
     });
 
     const fail = async (): Promise<void> => {
@@ -866,7 +868,7 @@ describe('Player live playback', () => {
         expect(container.querySelector('#player-osd')?.textContent)
           .toContain(`${label} — reconnecting (${attempt}/5)…`);
         expect(playlistMock.getByIndex).not.toHaveBeenCalled();
-        await vi.advanceTimersByTimeAsync(CONFIG.PLAYER.ACCOUNT_RETRY_DELAY_MS);
+        await vi.advanceTimersByTimeAsync(20000 * 2 ** (attempt - 1));
         expect(container.querySelector('video')).not.toBe(before); // the stream was loaded again
       }
 
@@ -883,7 +885,7 @@ describe('Player live playback', () => {
       player.play(0);
       await flush();
       await fail();
-      await vi.advanceTimersByTimeAsync(CONFIG.PLAYER.ACCOUNT_RETRY_DELAY_MS);
+      await vi.advanceTimersByTimeAsync(20000);
       await fail();
       expect(container.querySelector('#player-osd')?.textContent).toContain('(2/5)');
 
@@ -906,6 +908,26 @@ describe('Player live playback', () => {
       await vi.advanceTimersByTimeAsync(CONFIG.PLAYER.FAILURE_MESSAGE_MS);
 
       expect(playlistMock.getByIndex).toHaveBeenCalledWith(1);
+    });
+
+    it('doubles the wait on each try, from the setting, up to the cap', async () => {
+      diagnoseMock.mockResolvedValue({ reason: 'busy', status: 429 });
+      vi.mocked(StorageService.getLiveReconnectAttempts).mockReturnValue(5);
+      vi.mocked(StorageService.getAccountRetryWaitMs).mockReturnValue(60000);
+      playlistMock.channels = [{}, {}];
+      player.play(0);
+      await flush();
+
+      // 60 s, then 120 s, and the cap keeps every later wait at 120 s.
+      const waits = [60000, 120000, 120000];
+      for (const wait of waits) {
+        const before = container.querySelector('video') ?? video;
+        await fail();
+        await vi.advanceTimersByTimeAsync(wait - 1);
+        expect(container.querySelector('video')).toBe(before); // still waiting
+        await vi.advanceTimersByTimeAsync(1);
+        expect(container.querySelector('video')).not.toBe(before); // loaded again
+      }
     });
 
     it('does not retry a channel that is offline', async () => {

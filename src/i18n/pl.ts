@@ -380,6 +380,8 @@ export const PL_MESSAGES = {
   'settings.animationHint': 'Tryb podstawowy zachowuje lekkie animacje, ale wyłącza kosztowne efekty na starszych telewizorach. Tryb ograniczony zachowuje efekty, lecz od razu przewija do wybranego elementu. Tryb pełny używa płynnego przewijania przy pojedynczych krokach; przy przytrzymaniu przewijanie jest natychmiastowe.',
   'settings.liveReconnectAttempts': 'Liczba prób ponownego połączenia',
   'settings.liveReconnectHint': 'Po błędzie lub zatrzymaniu aplikacja próbuje ponownie połączyć bieżący kanał, a po wyczerpaniu ustawionej liczby prób przechodzi do następnego. Ustaw 0, aby od razu zmienić kanał. Zmiana zacznie obowiązywać przy następnym włączeniu kanału.',
+  'settings.accountRetryWait': 'Czas oczekiwania, gdy dostawca jest zajęty',
+  'settings.accountRetryWaitHint': 'Jak długo czekać przed ponownym połączeniem, gdy dostawca jest zajęty lub odmawia dostępu. Każda kolejna próba czeka dwa razy dłużej niż poprzednia. Zmiana zacznie obowiązywać przy następnym włączeniu kanału.',
   'settings.numberEntryOsdTimeout': 'Czas wpisywania numeru kanału',
   'settings.numberEntryOsdTimeoutHint': 'Odliczanie zaczyna się od nowa po każdej cyfrze. Po jego zakończeniu zostanie włączony wpisany kanał.',
   'settings.playerOsdTimeout': 'Czas do ukrycia panelu odtwarzacza',

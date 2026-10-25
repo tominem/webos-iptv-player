@@ -40,6 +40,7 @@ const {
     tzMode: 'device' as TzMode,
     channelCycleMode: 'global' as ChannelCycleMode,
     liveReconnectAttempts: 3,
+    accountRetryWaitMs: 20000,
     numberEntryOsdTimeoutMs: 1200,
     playerOsdTimeoutMs: 5000,
     playlistRefreshHours: 6,
@@ -94,6 +95,7 @@ const {
       getTzMode: vi.fn(() => state.tzMode),
       getChannelCycleMode: vi.fn(() => state.channelCycleMode),
       getLiveReconnectAttempts: vi.fn(() => state.liveReconnectAttempts),
+      getAccountRetryWaitMs: vi.fn(() => state.accountRetryWaitMs),
       getNumberEntryOsdTimeoutMs: vi.fn(() => state.numberEntryOsdTimeoutMs),
       getPlayerOsdTimeoutMs: vi.fn(() => state.playerOsdTimeoutMs),
       getPlaylistRefreshIntervalHours: vi.fn(() => state.playlistRefreshHours),
@@ -131,6 +133,9 @@ const {
       setChannelCycleMode: vi.fn((m: ChannelCycleMode) => { state.channelCycleMode = m; }),
       setLiveReconnectAttempts: vi.fn((attempts: number) => {
         state.liveReconnectAttempts = attempts;
+      }),
+      setAccountRetryWaitMs: vi.fn((wait: number) => {
+        state.accountRetryWaitMs = wait;
       }),
       setNumberEntryOsdTimeoutMs: vi.fn((timeout: number) => {
         state.numberEntryOsdTimeoutMs = timeout;
@@ -198,6 +203,7 @@ const {
 
 vi.mock('../services/storage-service', () => ({
   NUMBER_ENTRY_OSD_TIMEOUT_MS_OPTIONS: [1200, 1800, 2500, 3000, 3500],
+  ACCOUNT_RETRY_WAIT_MS_OPTIONS: [5000, 10000, 20000, 30000, 60000],
   LIVE_RECONNECT_ATTEMPT_OPTIONS: [0, 1, 2, 3, 4, 5],
   PLAYER_OSD_TIMEOUT_MS_OPTIONS: [3000, 5000, 8000, 10000, 12000],
   REFRESH_INTERVAL_HOUR_OPTIONS: [0, 1, 3, 6, 12, 24],
@@ -260,6 +266,7 @@ beforeEach(() => {
   state.overlayStyle = 'dark';
   state.textSize = '100';
   state.liveReconnectAttempts = 3;
+  state.accountRetryWaitMs = 20000;
   state.numberEntryOsdTimeoutMs = 1200;
   state.playerOsdTimeoutMs = 5000;
   state.playlistRefreshHours = 6;
@@ -535,7 +542,7 @@ describe('Settings.render', () => {
     const advanced = container.querySelector('#settings-advanced')!;
     expect(advanced.querySelector('.settings-section-title')?.textContent).toBe('Advanced');
     const items = advanced.querySelectorAll('.settings-advanced-row');
-    expect(items).toHaveLength(6);
+    expect(items).toHaveLength(7);
     expect(Array.from(advanced.querySelectorAll('.settings-advanced-group'))
       .map(group => group.textContent?.trim())
       .filter(Boolean))
@@ -560,6 +567,14 @@ describe('Settings.render', () => {
     )).map(option => option.dataset.dropdownValue))
       .toEqual(['0', '1', '2', '3', '4', '5']);
     expect(items[2].querySelector('.settings-item-title')?.textContent)
+      .toBe('Wait when provider is busy');
+    expect(container.querySelector('#account-retry-wait')?.getAttribute('data-value'))
+      .toBe('20000');
+    expect(Array.from(container.querySelectorAll<HTMLElement>(
+      '#account-retry-wait [data-dropdown-value]',
+    )).map(option => option.textContent))
+      .toEqual(['5 seconds', '10 seconds', '20 seconds', '30 seconds', '60 seconds']);
+    expect(items[3].querySelector('.settings-item-title')?.textContent)
       .toBe('Number Entry OSD timeout');
     expect(container.querySelector('#number-entry-osd-timeout')?.getAttribute('data-value'))
       .toBe('1200');
@@ -567,7 +582,7 @@ describe('Settings.render', () => {
       '#number-entry-osd-timeout [data-dropdown-value]',
     )).map(option => option.textContent))
       .toEqual(['1.2 seconds', '1.8 seconds', '2.5 seconds', '3 seconds', '3.5 seconds']);
-    expect(items[3].querySelector('.settings-item-title')?.textContent)
+    expect(items[4].querySelector('.settings-item-title')?.textContent)
       .toBe('Player OSD auto-hide delay');
     expect(container.querySelector('#player-osd-timeout')?.getAttribute('data-value'))
       .toBe('5000');
@@ -602,7 +617,7 @@ describe('Settings.render', () => {
     settings.render();
 
     expect(container.querySelectorAll('#settings-advanced .settings-advanced-row'))
-      .toHaveLength(7);
+      .toHaveLength(8);
     expect(container.querySelector('#xtream-catalog-refresh-interval')
       ?.getAttribute('data-value')).toBe('6');
     expect(Array.from(container.querySelectorAll<HTMLElement>(
@@ -1583,6 +1598,17 @@ describe('Settings.save', () => {
     click('#save-settings');
 
     expect(storageMock.setLiveReconnectAttempts).toHaveBeenCalledWith(5);
+    expect(onSave).toHaveBeenCalledWith('apply');
+  });
+
+  it('saves the wait when the provider is busy without forcing a data reload', () => {
+    state.playlists = [];
+    settings.render();
+
+    click('#account-retry-wait [data-dropdown-value="60000"]');
+    click('#save-settings');
+
+    expect(storageMock.setAccountRetryWaitMs).toHaveBeenCalledWith(60000);
     expect(onSave).toHaveBeenCalledWith('apply');
   });
 

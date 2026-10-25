@@ -4,8 +4,9 @@ import { morph } from '../utils/morph';
 import { SpatialNav, isFocusMove } from '../navigation/spatial-nav';
 import { Focus, type FocusScope, type Via } from '../navigation/focus-scope';
 import {
-  NUMBER_ENTRY_OSD_TIMEOUT_MS_OPTIONS,
+  ACCOUNT_RETRY_WAIT_MS_OPTIONS,
   LIVE_RECONNECT_ATTEMPT_OPTIONS,
+  NUMBER_ENTRY_OSD_TIMEOUT_MS_OPTIONS,
   PLAYER_OSD_TIMEOUT_MS_OPTIONS,
   REFRESH_INTERVAL_HOUR_OPTIONS,
   StorageService,
@@ -750,6 +751,7 @@ export class Settings {
     const textSize = StorageService.getTextSize();
     const localePreference = StorageService.getLocalePreference();
     const liveReconnectAttempts = StorageService.getLiveReconnectAttempts();
+    const accountRetryWaitMs = StorageService.getAccountRetryWaitMs();
     const numberEntryOsdTimeoutMs = StorageService.getNumberEntryOsdTimeoutMs();
     const playerOsdTimeoutMs = StorageService.getPlayerOsdTimeoutMs();
     const animationMode = StorageService.getAnimationMode();
@@ -1077,6 +1079,20 @@ export class Settings {
                         value: String(value), label: String(value),
                       })),
                       String(liveReconnectAttempts),
+                    )}
+                    </div>
+                  </div>
+                  <div class="settings-advanced-row">
+                    <div class="settings-advanced-group" aria-hidden="true"></div>
+                    <div class="settings-advanced-description">
+                      <div class="settings-item-title">${t('settings.accountRetryWait')}</div>
+                      <div class="settings-item-hint">${t('settings.accountRetryWaitHint')}</div>
+                    </div>
+                    <div class="settings-advanced-control">
+                    ${dropdown(
+                      'account-retry-wait',
+                      timeoutOptions(ACCOUNT_RETRY_WAIT_MS_OPTIONS),
+                      String(accountRetryWaitMs),
                     )}
                     </div>
                   </div>
@@ -2924,6 +2940,11 @@ export class Settings {
       ($('#live-reconnect-attempts', this.container) as HTMLElement | null)?.dataset.value,
     );
     StorageService.setLiveReconnectAttempts(liveReconnectAttempts);
+
+    const accountRetryWaitMs = Number(
+      ($('#account-retry-wait', this.container) as HTMLElement | null)?.dataset.value,
+    );
+    StorageService.setAccountRetryWaitMs(accountRetryWaitMs);
 
     const numberEntryOsdTimeoutMs = Number(
       ($('#number-entry-osd-timeout', this.container) as HTMLElement | null)?.dataset.value,

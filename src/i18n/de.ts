@@ -368,6 +368,8 @@ export const DE_MESSAGES = {
   'settings.animationHint': 'Die Stufe „Essenziell“ behält ressourcenschonende Animationen bei, deaktiviert auf älteren Fernsehern jedoch aufwendige Bewegungseffekte. „Reduziert“ behält visuelle Effekte bei, scrollt aber sofort zum fokussierten Element. „Vollständig“ verwendet bei einzelnen Navigationsschritten sanftes Scrollen; bei gedrückt gehaltener Taste oder wiederholten Eingaben erfolgt das Scrollen weiterhin sofort.',
   'settings.liveReconnectAttempts': 'Wiederverbindungsversuche bei Live-TV',
   'settings.liveReconnectHint': 'Bei Wiedergabefehlern oder Aussetzern wird der aktuelle Sender neu verbunden. Schlägt die Wiederherstellung fehl, wird automatisch zum nächsten Sender gewechselt. Bei 0 wird die Wiederverbindung übersprungen. Die Änderung gilt ab dem nächsten Senderaufruf.',
+  'settings.accountRetryWait': 'Wartezeit bei ausgelastetem Anbieter',
+  'settings.accountRetryWaitHint': 'Wartezeit vor der Wiederverbindung, wenn der Anbieter ausgelastet ist oder den Zugriff verweigert. Jeder weitere Versuch wartet doppelt so lange wie der vorherige. Die Änderung gilt ab dem nächsten Senderaufruf.',
   'settings.numberEntryOsdTimeout': 'Zeitlimit für die Sendernummerneingabe',
   'settings.numberEntryOsdTimeoutHint': 'Beginnt nach jeder Ziffer neu. Nach Ablauf wird zur eingegebenen Sendernummer gewechselt.',
   'settings.playerOsdTimeout': 'Ausblendverzögerung der Player-Steuerung',

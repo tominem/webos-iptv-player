@@ -51,6 +51,15 @@ import { PlayerTracks } from './player-tracks';
 
 const log = createLogger('Player');
 
+// The wait before retry number `attempt` (from 1) of a busy or refusing
+// provider: the user's wait, doubled on every try, up to a cap.
+function accountRetryWaitMs(attempt: number): number {
+  return Math.min(
+    StorageService.getAccountRetryWaitMs() * Math.pow(2, attempt - 1),
+    CONFIG.PLAYER.ACCOUNT_RETRY_MAX_WAIT_MS,
+  );
+}
+
 // True on the TV's webOS WebView; false in desktop preview / tests.
 const STREAMING_MIMES = new Set(['application/vnd.apple.mpegurl', 'application/dash+xml']);
 
@@ -1003,7 +1012,7 @@ export class Player {
     this.errorAdvanceTimer = setTimeout(() => {
       this.errorAdvanceTimer = null;
       this.reloadCurrentStream();
-    }, CONFIG.PLAYER.ACCOUNT_RETRY_DELAY_MS);
+    }, accountRetryWaitMs(attempt));
     return true;
   }
 

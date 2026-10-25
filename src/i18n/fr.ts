@@ -368,6 +368,8 @@ export const FR_MESSAGES = {
   'settings.animationHint': 'Le mode Essentiel conserve les animations légères, mais désactive les mouvements coûteux sur les téléviseurs anciens. Réduit conserve les effets visuels, mais fait défiler immédiatement jusqu’à l’élément actif. Complet utilise un défilement fluide pour les actions de navigation isolées ; lors d’un appui prolongé ou répété, le défilement reste immédiat.',
   'settings.liveReconnectAttempts': 'Tentatives de reconnexion en direct',
   'settings.liveReconnectHint': 'Reconnecte la chaîne en cours après une erreur ou un blocage. Si la récupération échoue, passe automatiquement à la chaîne suivante. Avec 0, la reconnexion est ignorée. Le réglage s’applique à la prochaine sélection de chaîne.',
+  'settings.accountRetryWait': 'Attente si le fournisseur est occupé',
+  'settings.accountRetryWaitHint': 'Délai avant de se reconnecter quand le fournisseur est occupé ou refuse l’accès. Chaque tentative attend deux fois plus longtemps que la précédente. S’applique à la prochaine sélection de chaîne.',
   'settings.numberEntryOsdTimeout': 'Délai de saisie du numéro de chaîne',
   'settings.numberEntryOsdTimeoutHint': 'Redémarre après chaque chiffre. À expiration, le numéro de chaîne saisi est sélectionné.',
   'settings.playerOsdTimeout': 'Délai de masquage des commandes du lecteur',

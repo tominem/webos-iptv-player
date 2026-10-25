@@ -55,7 +55,9 @@ export const CONFIG = {
     FAILURE_DIAGNOSIS_BYTES: 188 * 700,
     // The pause between tries of the same channel when the provider is busy or
     // refuses the account; the number of tries is "Live reconnect attempts".
-    ACCOUNT_RETRY_DELAY_MS: 5000,
+    // The first wait is the user's setting, each later one doubles up to the cap.
+    DEFAULT_ACCOUNT_RETRY_WAIT_MS: 20000,
+    ACCOUNT_RETRY_MAX_WAIT_MS: 120000,
     BUFFER_LENGTH: 30,
     MANIFEST_TIMEOUT: 5000,
     MANIFEST_MAX_BYTES: 256 * 1024,

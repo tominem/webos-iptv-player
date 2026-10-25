@@ -368,6 +368,8 @@ export const ES_MESSAGES = {
   'settings.animationHint': 'El modo Esencial conserva las animaciones ligeras, pero desactiva el movimiento de alto coste en televisores antiguos. Reducido conserva los efectos visuales, pero desplaza inmediatamente hasta el elemento enfocado. Completo usa desplazamiento suave en pasos de navegación aislados; al mantener una tecla o repetir la navegación, el desplazamiento sigue siendo inmediato.',
   'settings.liveReconnectAttempts': 'Intentos de reconexión en directo',
   'settings.liveReconnectHint': 'Reconecta el canal actual tras un error o bloqueo. Si no se recupera, cambia automáticamente al canal siguiente. Con 0, omite la reconexión. Se aplica a partir de la próxima sintonización.',
+  'settings.accountRetryWait': 'Espera con el proveedor ocupado',
+  'settings.accountRetryWaitHint': 'Tiempo de espera antes de reconectar cuando el proveedor está ocupado o rechaza el acceso. Cada intento espera el doble que el anterior. Se aplica a partir de la próxima sintonización.',
   'settings.numberEntryOsdTimeout': 'Tiempo límite para introducir el canal',
   'settings.numberEntryOsdTimeoutHint': 'Se reinicia después de cada dígito. Al finalizar, sintoniza el número de canal introducido.',
   'settings.playerOsdTimeout': 'Retardo de ocultación de los controles',

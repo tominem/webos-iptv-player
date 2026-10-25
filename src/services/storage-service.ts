@@ -34,6 +34,7 @@ const log = createLogger('StorageService');
 
 const PREFIX = CONFIG.STORAGE_PREFIX;
 export const LIVE_RECONNECT_ATTEMPT_OPTIONS: readonly number[] = [0, 1, 2, 3, 4, 5];
+export const ACCOUNT_RETRY_WAIT_MS_OPTIONS: readonly number[] = [5000, 10000, 20000, 30000, 60000];
 export const NUMBER_ENTRY_OSD_TIMEOUT_MS_OPTIONS: readonly number[] = [1200, 1800, 2500, 3000, 3500];
 export const PLAYER_OSD_TIMEOUT_MS_OPTIONS: readonly number[] = [3000, 5000, 8000, 10000, 12000];
 export const REFRESH_INTERVAL_HOUR_OPTIONS: readonly number[] = [0, 1, 3, 6, 12, 24];
@@ -717,6 +718,22 @@ export const StorageService = {
       throw new RangeError(`Invalid live reconnect attempts: ${String(attempts)}`);
     }
     set('live_reconnect_attempts', attempts);
+  },
+
+  getAccountRetryWaitMs(): number {
+    const wait = get<unknown>(
+      'account_retry_wait_ms',
+      CONFIG.PLAYER.DEFAULT_ACCOUNT_RETRY_WAIT_MS,
+    );
+    return typeof wait === 'number' && ACCOUNT_RETRY_WAIT_MS_OPTIONS.includes(wait)
+      ? wait
+      : CONFIG.PLAYER.DEFAULT_ACCOUNT_RETRY_WAIT_MS;
+  },
+  setAccountRetryWaitMs(wait: number): void {
+    if (!ACCOUNT_RETRY_WAIT_MS_OPTIONS.includes(wait)) {
+      throw new RangeError(`Invalid account retry wait: ${String(wait)}`);
+    }
+    set('account_retry_wait_ms', wait);
   },
 
   getNumberEntryOsdTimeoutMs(): number {

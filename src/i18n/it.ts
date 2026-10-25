@@ -366,6 +366,8 @@ export const IT_MESSAGES = {
   'settings.animationHint': 'La modalità Essenziale mantiene le animazioni leggere, ma disattiva i movimenti più onerosi sui televisori meno recenti. Ridotta mantiene gli effetti visivi, ma scorre immediatamente fino all’elemento con il focus. Completa usa lo scorrimento fluido per i singoli spostamenti; con pressioni prolungate o ripetute, lo scorrimento resta immediato.',
   'settings.liveReconnectAttempts': 'Tentativi di riconnessione in diretta',
   'settings.liveReconnectHint': 'Riconnette il canale corrente dopo un errore o un blocco. Se il ripristino non riesce, passa automaticamente al canale successivo. Con 0, salta la riconnessione. La modifica si applica dalla prossima sintonizzazione.',
+  'settings.accountRetryWait': 'Attesa se il fornitore è occupato',
+  'settings.accountRetryWaitHint': 'Tempo di attesa prima di riconnettersi quando il fornitore è occupato o rifiuta l’accesso. Ogni tentativo attende il doppio del precedente. La modifica si applica dalla prossima sintonizzazione.',
   'settings.numberEntryOsdTimeout': 'Timeout inserimento numero canale',
   'settings.numberEntryOsdTimeoutHint': 'Riparte dopo ogni cifra. Alla scadenza viene sintonizzato il numero di canale inserito.',
   'settings.playerOsdTimeout': 'Ritardo scomparsa controlli del lettore',

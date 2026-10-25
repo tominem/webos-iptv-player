@@ -368,6 +368,8 @@ export const PT_BR_MESSAGES = {
   'settings.animationHint': 'O modo Essencial mantém animações leves, mas desativa movimentos de alto custo em TVs mais antigas. Reduzido mantém os efeitos visuais, mas rola imediatamente até o item em foco. Completo usa rolagem suave em movimentos de navegação isolados; ao manter a tecla pressionada ou repetir a navegação, a rolagem continua imediata.',
   'settings.liveReconnectAttempts': 'Tentativas de reconexão da TV ao vivo',
   'settings.liveReconnectHint': 'Reconecta o canal atual após um erro ou travamento. Se a recuperação falhar, muda automaticamente para o próximo canal. Com 0, ignora a reconexão. A alteração vale a partir da próxima sintonia.',
+  'settings.accountRetryWait': 'Espera quando o provedor está ocupado',
+  'settings.accountRetryWaitHint': 'Quanto esperar antes de reconectar quando o provedor está ocupado ou recusa o acesso. Cada nova tentativa espera o dobro da anterior. A alteração vale a partir da próxima sintonia.',
   'settings.numberEntryOsdTimeout': 'Tempo limite para inserir o canal',
   'settings.numberEntryOsdTimeoutHint': 'Reinicia após cada dígito. Ao terminar, sintoniza o número de canal inserido.',
   'settings.playerOsdTimeout': 'Atraso para ocultar os controles',

@@ -362,6 +362,8 @@ export const ZH_CN_MESSAGES = {
   'settings.animationHint': '基础模式保留轻量动画，但会在较旧的电视上关闭高开销的动态效果；均衡模式保留视觉效果，但会立即滚动到焦点项；完整模式在单次导航时使用平滑滚动，长按或连续按键时仍会立即滚动。',
   'settings.liveReconnectAttempts': '直播重连次数',
   'settings.liveReconnectHint': '播放出错或卡顿时自动重连当前频道；恢复失败后自动切换到下一个频道。设为 0 时跳过重连。新设置在下次播放频道时生效。',
+  'settings.accountRetryWait': '服务商繁忙时的等待时间',
+  'settings.accountRetryWaitHint': '服务商繁忙或拒绝访问时，重新连接前的等待时间。每次重试的等待时间是上一次的两倍。新设置在下次播放频道时生效。',
   'settings.numberEntryOsdTimeout': '频道号码输入超时',
   'settings.numberEntryOsdTimeoutHint': '每次输入数字后重新计时；超时后切换到已输入的频道号码。',
   'settings.playerOsdTimeout': '播放器控制栏自动隐藏时间',
