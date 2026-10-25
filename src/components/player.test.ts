@@ -930,6 +930,27 @@ describe('Player live playback', () => {
       }
     });
 
+    it('logs the element error as text, not as an object', async () => {
+      diagnoseMock.mockResolvedValue({ reason: 'busy', status: 429 });
+      const errorLog = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      playlistMock.channels = [{}, {}];
+      player.play(0);
+      await flush();
+
+      const current = container.querySelector('video') ?? video;
+      Object.defineProperty(current, 'error', {
+        configurable: true,
+        value: { code: 2, message: 'PIPELINE_ERROR_READ' },
+      });
+      current.dispatchEvent(new Event('error'));
+      await vi.advanceTimersByTimeAsync(0);
+
+      const line = errorLog.mock.calls.find(args => args[1] === 'Video playback error');
+      expect(line).toContain('MEDIA_ERR_NETWORK(2) PIPELINE_ERROR_READ');
+      expect(line?.some(arg => typeof arg === 'object' && arg !== null)).toBe(false);
+      errorLog.mockRestore();
+    });
+
     it('does not retry a channel that is offline', async () => {
       diagnoseMock.mockResolvedValue({ reason: 'offline', status: 404 });
       playlistMock.channels = [{}, {}];

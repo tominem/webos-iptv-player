@@ -19,6 +19,7 @@ import {
 } from '../utils/xtream-url';
 import { show, hide } from '../utils/dom';
 import { channelKey } from '../utils/channel';
+import { describeMediaError } from '../utils/media-error';
 import { dvrWindow, dvrState, type DvrWindow } from '../utils/dvr';
 import { PlaylistService } from '../services/playlist-service';
 import { ParentalControlService, liveParentalRequest } from '../services/parental-control';
@@ -1121,7 +1122,7 @@ export class Player {
     log.error('Video playback error', 'event=playback.video.error',
       this.playbackLabel(),
       v ? this.mediaState(v) : 'no video element',
-      v?.error ? { code: v.error.code, message: v.error.message } : 'no error info',
+      describeMediaError(v?.error),
       '| channel:', this.currentChannel?.name,
       '| url:', diagnosticStreamUrl(v?.currentSrc || this.currentChannel?.url || ''));
     if (this.liveSessionActive && !this.catchupInfo && reason !== 'unsupported') {
