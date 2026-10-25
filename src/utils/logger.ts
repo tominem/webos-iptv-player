@@ -10,6 +10,8 @@
  *   localStorage.setItem('iptv_log_level', 'warn'); location.reload();
  */
 
+import { readEventHistory, recordLogEvent } from './event-history';
+
 type Level = 'debug' | 'info' | 'warn' | 'error' | 'silent';
 
 const LEVEL_RANK: Record<Level, number> = {
@@ -39,9 +41,18 @@ export function createLogger(tag: string): TaggedLogger {
   const prefix = `[${tag}]`;
   return {
     debug: (...args) => { if (should('debug')) console.log(prefix, ...args); },
-    info:  (...args) => { if (should('info'))  console.log(prefix, ...args); },
-    warn:  (...args) => { if (should('warn'))  console.warn(prefix, ...args); },
-    error: (...args) => { if (should('error')) console.error(prefix, ...args); },
+    info:  (...args) => {
+      if (should('info')) console.log(prefix, ...args);
+      recordLogEvent('info', tag, args);
+    },
+    warn:  (...args) => {
+      if (should('warn')) console.warn(prefix, ...args);
+      recordLogEvent('warn', tag, args);
+    },
+    error: (...args) => {
+      if (should('error')) console.error(prefix, ...args);
+      recordLogEvent('error', tag, args);
+    },
     time(label: string) {
       const start = Date.now();
       return () => {
@@ -61,6 +72,8 @@ export const Logger = {
     console.log(`[Logger] level set to '${level}'`);
   },
   getLevel(): Level { return currentLevel; },
+  /** The persisted trail of recent playback events, oldest first. */
+  history(): string[] { return readEventHistory(); },
 };
 
 /**

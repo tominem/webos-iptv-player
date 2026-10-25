@@ -78,7 +78,8 @@ flowchart LR
 ### localStorage
 
 Small boot-critical values retain the `iptv_` prefix. `StorageService` values
-use JSON encoding; the logger's standalone `iptv_log_level` key is a raw string.
+use JSON encoding; the logger's standalone `iptv_log_level` key is a raw string and its
+`iptv_event_history` key is a JSON array of text lines.
 This is the complete active key inventory:
 
 | Key | Type | Stored content | Classification |
@@ -104,6 +105,7 @@ This is the complete active key inventory:
 | `iptv_epg_offsets` | `Record<string, number>` | User time correction in minutes, keyed by EPG source URL | Preference |
 | `iptv_online_subtitles` | `OnlineSubtitleConfig` | Preferred language; SubDL and Assrt API keys; OpenSubtitles API key, username, password, access token, and token timestamp | Configuration and credentials |
 | `iptv_log_level` | `string` | Optional runtime logger threshold used by diagnostics | Developer preference |
+| `iptv_event_history` | `string[]` | The last 120 warnings, errors and structured events of the Player, StreamDiagnosis and ChannelHealth logs, each capped at 240 characters (about 30 KB at most), kept so a failure can be read after the app closes | Small derived state |
 
 This lets the app discover its sources and render basic preferences before
 opening IndexedDB. No fixed Web Storage capacity is assumed: it is intentionally
