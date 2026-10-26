@@ -301,6 +301,11 @@ result can therefore differ between TV models, webOS versions, and available
 storage. A displayed budget of 75 MiB is normal when webOS grants the app a
 quota of about 150 MiB.
 
+A single download larger than the whole budget is not cached at all. Making
+room for it would evict the playlist and catalog that fit, and the write would
+still fail. On a TV with a 20 MiB legacy quota (a 5 MiB budget) a large program
+guide is therefore skipped and downloaded again on the next start.
+
 The displayed total covers only the managed cache. Small settings, personal
 records, browser-managed image files, and original LAN-uploaded M3U files are
 not included.

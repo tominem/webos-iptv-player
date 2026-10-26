@@ -200,10 +200,12 @@ describe('idb-cache', () => {
 
   it('includes stream MIME records in the shared cache eviction pass', async () => {
     await setCachedStreamMime('http://host/live', 'video/mp2t');
+    // A budget (half the quota) that holds the new record but not the old one too.
+    const used = (await getCacheUsage()).total.bytes;
     const storageDescriptor = Object.getOwnPropertyDescriptor(navigator, 'storage');
     Object.defineProperty(navigator, 'storage', {
       configurable: true,
-      value: { estimate: async () => ({ usage: 0, quota: 100 }) },
+      value: { estimate: async () => ({ usage: 0, quota: 2 * (used + 64) }) },
     });
     try {
       await setCachedCatalog('x1|vod_categories', ['a']);
@@ -217,6 +219,57 @@ describe('idb-cache', () => {
 
     expect(await getCachedStreamMime('http://host/live')).toBeNull();
     expect(await getCachedCatalog('x1|vod_categories')).not.toBeNull();
+  });
+
+  it('skips a record larger than the budget instead of evicting the cache for it', async () => {
+    const nav = navigator as Navigator & { webkitTemporaryStorage?: unknown };
+    const storageDescriptor = Object.getOwnPropertyDescriptor(navigator, 'storage');
+    Object.defineProperty(navigator, 'storage', { configurable: true, value: undefined });
+    // The legacy API on a 20 MB quota: a 5 MB budget.
+    Object.defineProperty(nav, 'webkitTemporaryStorage', {
+      configurable: true,
+      value: { queryUsageAndQuota: (ok: (usage: number, quota: number) => void) => ok(0, 20_000_000) },
+    });
+    try {
+      const channels = [channel('ch1')];
+      await setCachedPlaylist(channels, [], 1, null);
+      await setCachedCatalog('x1|vod_all', ['a'.repeat(3_000_000)]);
+
+      const stored = await setCachedEpg('http://host/epg', {
+        channels: {}, programmes: { big: 'x'.repeat(6_000_000) },
+      } as never);
+
+      expect(stored).toBe(false);
+      expect(await getCachedEpg('http://host/epg')).toBeNull();
+      expect(await getCachedPlaylist(null)).toMatchObject({ channels });
+      expect(await getCachedCatalog('x1|vod_all')).not.toBeNull();
+    } finally {
+      delete nav.webkitTemporaryStorage;
+      if (storageDescriptor) Object.defineProperty(navigator, 'storage', storageDescriptor);
+      else delete (navigator as Navigator & { storage?: StorageManager }).storage;
+    }
+  });
+
+  it('still makes room for a record that fits the budget', async () => {
+    const nav = navigator as Navigator & { webkitTemporaryStorage?: unknown };
+    const storageDescriptor = Object.getOwnPropertyDescriptor(navigator, 'storage');
+    Object.defineProperty(navigator, 'storage', { configurable: true, value: undefined });
+    Object.defineProperty(nav, 'webkitTemporaryStorage', {
+      configurable: true,
+      value: { queryUsageAndQuota: (ok: (usage: number, quota: number) => void) => ok(0, 20_000_000) },
+    });
+    try {
+      await setCachedCatalog('x1|old', ['o'.repeat(3_000_000)]);
+
+      await setCachedCatalog('x1|new', ['n'.repeat(3_000_000)]);
+
+      expect(await getCachedCatalog('x1|new')).not.toBeNull();
+      expect(await getCachedCatalog('x1|old')).toBeNull();
+    } finally {
+      delete nav.webkitTemporaryStorage;
+      if (storageDescriptor) Object.defineProperty(navigator, 'storage', storageDescriptor);
+      else delete (navigator as Navigator & { storage?: StorageManager }).storage;
+    }
   });
 
   it('removes an expired subtitle instead of serving it', async () => {

@@ -1030,6 +1030,23 @@ async function putRawNow(
   await ensureMetadata();
   const previous = await readEntryMeta(store, key);
   const record = normalizeRecord(store, raw);
+  // A record larger than the whole budget can never stay. Making room for it
+  // would still evict the playlist and catalog cached a moment ago, and the
+  // write would fail anyway, so leave the cache as it is.
+  const estimate = await cachedStorageEstimate();
+  const budgetBytes = budgetForQuota(estimate.quota, estimate.legacy);
+  if (record.byteSize > budgetBytes) {
+    log.info(
+      'Cache record is larger than the budget; not cached',
+      'event=persistence.cache.write.skipped',
+      'operation=write',
+      `category=${categoryForStore(store)}`,
+      'reason=exceeds_budget',
+      `recordBytes=${record.byteSize}`,
+      `budgetBytes=${budgetBytes}`,
+    );
+    return false;
+  }
   await ensureCapacity(Math.max(0, record.byteSize - (previous?.byteSize ?? 0)));
   try {
     const latest = await readEntryMeta(store, key);
