@@ -1493,7 +1493,8 @@ test.describe('Settings Xtream live categories', () => {
       }))));
     });
     await page.goto('/');
-    await expect(channels(page)).toHaveCount(3);
+    // Two accounts, three channels each: the list shows both.
+    await expect(channels(page)).toHaveCount(6);
     await enterTab(page, 'settings');
     await page.locator('[data-settings-target="sources"]').click();
     await page.locator('.xtream-card[data-id="x1"] .xtream-live-categories').click();
@@ -1535,7 +1536,8 @@ test.describe('Settings Xtream live categories', () => {
       }))));
     });
     await page.goto('/');
-    await expect(channels(page)).toHaveCount(3);
+    // Two accounts, three channels each: the list shows both.
+    await expect(channels(page)).toHaveCount(6);
     await enterTab(page, 'settings');
     await page.locator('[data-settings-target="sources"]').click();
     await page.locator('.xtream-card[data-id="x1"] .xtream-live-categories').click();
