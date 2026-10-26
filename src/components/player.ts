@@ -225,6 +225,7 @@ export class Player {
       pollMs: CONFIG.PLAYER.STALL_POLL_MS,
       freezeTicks: CONFIG.PLAYER.STALL_FREEZE_TICKS,
       maxReloads: CONFIG.PLAYER.DEFAULT_LIVE_RECONNECT_ATTEMPTS,
+      startupMaxReloads: CONFIG.PLAYER.STALL_STARTUP_MAX_RELOADS,
     });
     this.startupWatchdog = new StartupWatchdog({
       probe: (): StartupProbe => {

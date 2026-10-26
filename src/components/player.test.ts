@@ -736,6 +736,39 @@ describe('Player live playback', () => {
     expect(reload).not.toHaveBeenCalled();
   });
 
+  // A stream that has played: the element reports progress, so the watchdog
+  // keeps the full reconnect budget.
+  const playForAWhile = (el: HTMLVideoElement): void => {
+    Object.defineProperty(el, 'paused', { configurable: true, value: false });
+    Object.defineProperty(el, 'currentTime', { configurable: true, value: 5 });
+    el.dispatchEvent(new Event('timeupdate'));
+  };
+
+  it('gives a channel that never played one reconnect before advancing', async () => {
+    playlistMock.channels = [{}, {}];
+    HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
+    HTMLMediaElement.prototype.pause = vi.fn();
+    HTMLMediaElement.prototype.load = vi.fn();
+    video = document.createElement('video');
+    container.appendChild(video);
+    player.init(video);
+    player.play(0);
+    playlistMock.getByIndex.mockClear();
+
+    video.dispatchEvent(new Event('error'));
+    await flush();
+    vi.advanceTimersByTime(2000);
+    const second = container.querySelector('video')!;
+    expect(second).not.toBe(video); // the one reconnect
+
+    second.dispatchEvent(new Event('error'));
+    await vi.advanceTimersByTimeAsync(2000 + CONFIG.PLAYER.FAILURE_MESSAGE_MS);
+
+    expect(container.querySelector('video')).toBe(second); // no third try
+    expect(healthMock.recordPlaybackFailure).toHaveBeenCalledWith(CHANNEL, 'playback_error');
+    expect(playlistMock.getByIndex).toHaveBeenCalledWith(1);
+  });
+
   it('coalesces errors and reconnects the same channel before advancing', async () => {
     playlistMock.channels = [{}, {}];
     HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
@@ -746,6 +779,7 @@ describe('Player live playback', () => {
     player.init(video);
     player.play(0);
     playlistMock.getByIndex.mockClear();
+    playForAWhile(video);
 
     for (let i = 0; i < 20; i++) video.dispatchEvent(new Event('error'));
     await flush();

@@ -24,6 +24,10 @@ export interface StallWatchdogOptions {
   pollMs: number;
   freezeTicks: number;
   maxReloads: number;
+  // Reloads allowed while the stream has not yet played a single second; a
+  // channel that never started rarely comes back on the third try. Unset means
+  // the same budget as a stream that played.
+  startupMaxReloads?: number;
 }
 
 // = HTMLMediaElement.HAVE_FUTURE_DATA (3), inlined because this module is DOM-free
@@ -38,11 +42,13 @@ export class StallWatchdog {
   private readonly pollMs: number;
   private readonly freezeTicks: number;
   private maxReloads: number;
+  private readonly startupMaxReloads: number | undefined;
 
   private timer: ReturnType<typeof setInterval> | null = null;
   private lastTime = -1;
   private frozenTicks = 0;
   private reloadCount = 0;
+  private played = false;
 
   constructor(opts: StallWatchdogOptions) {
     this.probe = opts.probe;
@@ -51,6 +57,7 @@ export class StallWatchdog {
     this.pollMs = opts.pollMs;
     this.freezeTicks = opts.freezeTicks;
     this.maxReloads = opts.maxReloads;
+    this.startupMaxReloads = opts.startupMaxReloads;
   }
 
   start(monitor = true, maxReloads = this.maxReloads): void {
@@ -58,6 +65,7 @@ export class StallWatchdog {
     this.lastTime = -1;
     this.frozenTicks = 0;
     this.reloadCount = 0;
+    this.played = false;
     this.maxReloads = maxReloads;
     if (monitor) this.timer = setInterval(() => this.tick(), this.pollMs);
   }
@@ -87,6 +95,7 @@ export class StallWatchdog {
       this.lastTime = currentTime;
       this.frozenTicks = 0;
       this.reloadCount = 0;
+      if (currentTime > 0) this.played = true;
       return true;
     }
     this.lastTime = currentTime;
@@ -103,12 +112,15 @@ export class StallWatchdog {
     frozenMs: number,
     cause: StallRecovery['cause'],
   ): boolean {
+    const maxReloads = this.played || this.startupMaxReloads === undefined
+      ? this.maxReloads
+      : Math.min(this.maxReloads, this.startupMaxReloads);
     const recovery: StallRecovery = {
       probe, frozenMs, cause,
       reloadCount: this.reloadCount,
-      maxReloads: this.maxReloads,
+      maxReloads,
     };
-    if (this.reloadCount < this.maxReloads) {
+    if (this.reloadCount < maxReloads) {
       recovery.reloadCount = ++this.reloadCount;
       this.onReload(recovery);
       return true;

@@ -165,6 +165,54 @@ describe('StallWatchdog', () => {
     expect(wd.recoverFromError()).toBe(true);
   });
 
+  describe('a stream that never played', () => {
+    const START_OPTS = { ...OPTS, maxReloads: 3, startupMaxReloads: 1 };
+
+    it('gives up after the startup budget, not the full one', () => {
+      const wd = new StallWatchdog({ probe: () => frozen(0), onReload, onEscalate, ...START_OPTS });
+      wd.start();
+      vi.advanceTimersByTime(OPTS.pollMs * 40);
+      expect(onReload).toHaveBeenCalledTimes(1);
+      expect(onReload).toHaveBeenCalledWith(expect.objectContaining({ maxReloads: 1 }));
+      expect(onEscalate).toHaveBeenCalledTimes(1);
+      expect(onEscalate).toHaveBeenCalledWith(expect.objectContaining({ reloadCount: 1, maxReloads: 1 }));
+    });
+
+    it('keeps the full budget once the stream has played', () => {
+      const wd = new StallWatchdog({
+        probe: scriptedProbe([playing(5), frozen(5)]), onReload, onEscalate, ...START_OPTS,
+      });
+      wd.start();
+      vi.advanceTimersByTime(OPTS.pollMs * 40);
+      expect(onReload).toHaveBeenCalledTimes(3);
+      expect(onEscalate).toHaveBeenCalledWith(expect.objectContaining({ maxReloads: 3 }));
+    });
+
+    it('never raises the budget above the Live reconnect attempts setting', () => {
+      const wd = new StallWatchdog({ probe: () => frozen(0), onReload, onEscalate, ...START_OPTS });
+      wd.start(true, 0);
+      vi.advanceTimersByTime(OPTS.pollMs * 10);
+      expect(onReload).not.toHaveBeenCalled();
+      expect(onEscalate).toHaveBeenCalledWith(expect.objectContaining({ maxReloads: 0 }));
+    });
+
+    it('counts a new start as never played', () => {
+      const wd = new StallWatchdog({
+        probe: scriptedProbe([playing(5), frozen(5)]), onReload, onEscalate, ...START_OPTS,
+      });
+      wd.start();
+      vi.advanceTimersByTime(OPTS.pollMs * 40);
+      onReload.mockClear();
+      onEscalate.mockClear();
+
+      wd.start();
+      wd.pause();
+      expect(wd.recoverFromError()).toBe(true);
+      expect(wd.recoverFromError()).toBe(false);
+      expect(onEscalate).toHaveBeenCalledWith(expect.objectContaining({ maxReloads: 1 }));
+    });
+  });
+
   it('keeps a restarting onEscalate\'s watchdog alive (escalation must not kill the next channel)', () => {
     // Production wiring: onEscalate -> channelUp -> play -> stop()+start(). Model
     // that by having onEscalate restart THIS watchdog and point it at a fresh,
