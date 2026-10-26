@@ -288,7 +288,7 @@ export class Player {
     // sourceless element, which is not a startup attempt.
     onCurrent('loadstart', () => {
       if (!el.currentSrc && !el.getAttribute('src') && !el.querySelector('source')) return;
-      this.startupWatchdog.start();
+      this.startupWatchdog.start(this.startupTimeoutMs());
     });
     onCurrent('loadedmetadata', () => {
       update();
@@ -468,7 +468,7 @@ export class Player {
     // A stream still starting when we were hidden gets a fresh budget. Element
     // state alone can't say that: a seek into an unbuffered region also drops
     // readyState below HAVE_CURRENT_DATA.
-    if (this.startupPending && this.videoEl.readyState < 2) this.startupWatchdog.start();
+    if (this.startupPending && this.videoEl.readyState < 2) this.startupWatchdog.start(this.startupTimeoutMs());
     if (this.vod) {
       this.reauthorizeVod(this.vod, this.videoEl);
       return;
@@ -1016,6 +1016,10 @@ export class Player {
       this.reloadCurrentStream();
     }, accountRetryWaitMs(attempt));
     return true;
+  }
+
+  private startupTimeoutMs(): number {
+    return this.vod ? CONFIG.PLAYER.VOD_STARTUP_TIMEOUT : CONFIG.PLAYER.STARTUP_TIMEOUT;
   }
 
   /**

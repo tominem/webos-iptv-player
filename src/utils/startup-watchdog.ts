@@ -35,6 +35,7 @@ export class StartupWatchdog {
   private readonly pollMs: number;
   private readonly timeoutMs: number;
 
+  private budgetMs: number;
   private timer: ReturnType<typeof setInterval> | null = null;
   private elapsedMs = 0;
 
@@ -43,11 +44,14 @@ export class StartupWatchdog {
     this.onFailure = opts.onFailure;
     this.pollMs = opts.pollMs;
     this.timeoutMs = opts.timeoutMs;
+    this.budgetMs = opts.timeoutMs;
   }
 
-  start(): void {
+  // `timeoutMs` replaces the default budget for this load only.
+  start(timeoutMs?: number): void {
     this.stop();
     this.elapsedMs = 0;
+    this.budgetMs = timeoutMs ?? this.timeoutMs;
     this.timer = setInterval(() => this.tick(), this.pollMs);
   }
 
@@ -74,7 +78,7 @@ export class StartupWatchdog {
       this.report('unsupported', probe);
       return;
     }
-    if (this.elapsedMs >= this.timeoutMs) this.report('timeout', probe);
+    if (this.elapsedMs >= this.budgetMs) this.report('timeout', probe);
   }
 
   private report(failure: StartupFailure, probe: StartupProbe): void {

@@ -80,6 +80,7 @@ export const CONFIG = {
     STALL_STARTUP_MAX_RELOADS: 1, // reconnects for a stream that never played a second
     STARTUP_POLL_MS: 500,       // startup watchdog: readyState/networkState poll interval
     STARTUP_TIMEOUT: 15000,     // ms a stream may load without a frame before it counts as failed
+    VOD_STARTUP_TIMEOUT: 60000, // same for a movie or episode: an MP4 with its index at the end needs it read first
     DVR_MIN_WINDOW: 10,         // live DVR: a seekable window must exceed this (s) to offer timeshift
     DVR_LIVE_EDGE: 10,          // within this many seconds of the window end counts as "at live"
     DVR_GO_LIVE_PAD: 3,         // Go-to-Live seeks to seekable.end minus this (s), avoiding a stall at the edge

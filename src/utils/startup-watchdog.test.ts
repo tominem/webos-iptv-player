@@ -70,6 +70,20 @@ describe('StartupWatchdog', () => {
     expect(onFailure).toHaveBeenCalledTimes(1);
   });
 
+  it('takes a longer budget for one load, then goes back to the default', () => {
+    const watchdog = new StartupWatchdog({ probe: scriptedProbe([loading]), onFailure, ...OPTS });
+    watchdog.start(OPTS.timeoutMs * 4);
+    vi.advanceTimersByTime(OPTS.timeoutMs * 4 - OPTS.pollMs);
+    expect(onFailure).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(OPTS.pollMs);
+    expect(onFailure).toHaveBeenCalledWith('timeout', loading, OPTS.timeoutMs * 4);
+
+    onFailure.mockClear();
+    watchdog.start();
+    vi.advanceTimersByTime(OPTS.timeoutMs);
+    expect(onFailure).toHaveBeenCalledWith('timeout', loading, OPTS.timeoutMs);
+  });
+
   it('stops when the player stops', () => {
     const watchdog = run(scriptedProbe([loading]), OPTS.pollMs);
     watchdog.stop();

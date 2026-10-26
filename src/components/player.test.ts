@@ -1813,10 +1813,31 @@ describe('Player VOD mode', () => {
     video.dispatchEvent(new Event('loadstart'));
     vi.mocked(showToast).mockClear();
 
-    await vi.advanceTimersByTimeAsync(CONFIG.PLAYER.STARTUP_TIMEOUT);
+    await vi.advanceTimersByTimeAsync(CONFIG.PLAYER.VOD_STARTUP_TIMEOUT);
 
     expect(showToast).toHaveBeenCalledWith('Unable to play this video.');
     expect(r.onBack).toHaveBeenCalled();
+  });
+
+  it('gives a VOD longer than a live stream to produce its first frame', async () => {
+    // An MP4 with its index at the end opened after about 25 s over the VPN,
+    // and the 15 s a live stream gets cut it off while it was still loading.
+    const video = fakeVideo(3600);
+    Object.assign(video, { readyState: 0, networkState: 2 });
+    player.init(video);
+    const r = req();
+    player.playVod(r);
+    video.dispatchEvent(new Event('loadstart'));
+    vi.mocked(showToast).mockClear();
+
+    await vi.advanceTimersByTimeAsync(CONFIG.PLAYER.STARTUP_TIMEOUT * 2);
+
+    expect(showToast).not.toHaveBeenCalled();
+    expect(r.onBack).not.toHaveBeenCalled();
+    Object.assign(video, { readyState: 4, networkState: 1 }); // the first frame arrives
+    await vi.advanceTimersByTimeAsync(CONFIG.PLAYER.VOD_STARTUP_TIMEOUT);
+    expect(showToast).not.toHaveBeenCalled();
+    expect(r.onBack).not.toHaveBeenCalled();
   });
 
   it('names the reason in the toast when the diagnosis finds one', async () => {
