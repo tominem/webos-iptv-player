@@ -99,6 +99,13 @@ describe('Home', () => {
     expect(ringed()?.dataset.section).toBe('live');
   });
 
+  it('shows the app name as the other screens do, and it is not a control', () => {
+    home.open({ hasXtream: true, accountId: 'acc1' });
+    const title = container.querySelector('.home-title');
+    expect(title?.textContent).toBe(CONFIG.APP_NAME);
+    expect(title?.hasAttribute('data-focusable')).toBe(false);
+  });
+
   it('focuses the tile of the section the user came back from', () => {
     home.open({ hasXtream: true, accountId: 'acc1' }, 'series');
     expect(ringed()?.dataset.section).toBe('series');

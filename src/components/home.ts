@@ -120,6 +120,7 @@ export class Home {
     const tiles = TILES.filter(tile => hasXtream || !tile.xtreamOnly);
     morph(this.container, html`
       <div class="home-view">
+        <span class="home-title">${CONFIG.APP_NAME}</span>
         <div class="home-tiles" data-nav-container>
           ${tiles.map(tile => html`
             <button class="home-tile" data-focusable data-key="${`tile-${tile.section}`}"
