@@ -8,7 +8,7 @@ import * as http from 'http';
 import * as os from 'os';
 import * as path from 'path';
 import { startServer } from './server';
-import { proxyUrl, rewritePlaylist } from './proxy';
+import { forwardRequest, proxyUrl, rewritePlaylist } from './proxy';
 
 let service: http.Server;
 let upstream: http.Server;
@@ -111,5 +111,60 @@ describe('proxy URL helpers', () => {
   it('leaves non-URI playlist tags alone', () => {
     expect(rewritePlaylist('#EXTM3U\n#EXT-X-VERSION:3', 'http://p/a.m3u8', 'UA', 'http://h'))
       .toBe('#EXTM3U\n#EXT-X-VERSION:3');
+  });
+});
+
+// A movie the player has paused stops reading, so nothing moves through the proxy for as long
+// as the pause lasts. That is not the provider stalling: the stream must stay as it was, and the
+// service must stay up.
+describe('a paused stream', () => {
+  const servers: http.Server[] = [];
+  afterAll(() => { servers.forEach((server) => server.close()); });
+
+  function listen(server: http.Server): Promise<number> {
+    servers.push(server);
+    return new Promise((resolve) => {
+      server.listen(0, '127.0.0.1', () => resolve((server.address() as { port: number }).port));
+    });
+  }
+
+  it('is not cut when the player stops reading for longer than the idle time', async () => {
+    let upstreamClosed = false;
+    const source = http.createServer((_req, res) => {
+      res.writeHead(200, { 'Content-Type': 'video/mp4', 'Content-Length': String(500 * 1024 * 1024) });
+      const chunk = Buffer.alloc(64 * 1024);
+      const timer = setInterval(() => { res.write(chunk); }, 1);
+      res.on('close', () => { clearInterval(timer); upstreamClosed = true; });
+    });
+    const sourcePort = await listen(source);
+    let proxyPort = 0;
+    const front = http.createServer((req, res) => {
+      forwardRequest(req, res, {
+        target: `http://127.0.0.1:${sourcePort}/a.mp4`,
+        userAgent: 'UA/1',
+        proxyBase: `http://127.0.0.1:${proxyPort}`,
+        idleMs: 100,
+      });
+    });
+    proxyPort = await listen(front);
+
+    const response = await new Promise<http.IncomingMessage>((resolve) => {
+      http.get({ host: '127.0.0.1', port: proxyPort, path: '/proxy/a.mp4' }, resolve);
+    });
+    response.pause();
+    let ended = false;
+    response.on('end', () => { ended = true; });
+    // Several idle times of silence, as a pause is.
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    expect(ended).toBe(false);
+    expect(upstreamClosed).toBe(false);
+
+    // The player plays on: the same response goes on delivering.
+    let received = 0;
+    response.on('data', (data: Buffer) => { received += data.length; });
+    response.resume();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(received).toBeGreaterThan(0);
+    response.destroy();
   });
 });

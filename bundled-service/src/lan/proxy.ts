@@ -28,6 +28,8 @@ export interface ProxyRequest {
   target: string;
   userAgent: string;
   proxyBase: string;
+  // How long the provider may stay silent before it is given up on; tests shorten it.
+  idleMs?: number;
 }
 
 export function isValidUserAgent(value: string): boolean {
@@ -148,6 +150,10 @@ export function forwardRequest(
         (isPlaylistType(contentType) || isPlaylistPath(target));
       if (!rewrite) {
         res.writeHead(status, outHeaders);
+        // From here the player sets the pace. A paused movie stops reading, which is
+        // not the provider stalling: ending the response under the pipe would write
+        // to it after the end and bring the whole service down.
+        request.setTimeout(0);
         upstreamRes.pipe(res);
         return;
       }
@@ -177,7 +183,7 @@ export function forwardRequest(
       upstreamRes.on('error', () => res.end());
     });
     upstream = request;
-    request.setTimeout(UPSTREAM_IDLE_MS, () => {
+    request.setTimeout(proxy.idleMs || UPSTREAM_IDLE_MS, () => {
       abortRequest(request);
       fail(res, 504, 'Upstream timed out');
     });
