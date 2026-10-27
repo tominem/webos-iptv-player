@@ -327,19 +327,28 @@ describe('xtream-catalog', () => {
 
   it('falls back to stale VOD info when a stale re-fetch returns null', async () => {
     const stale = Date.now() - CONFIG.XTREAM.DEFAULT_CATALOG_REFRESH_INTERVAL_MS - 1;
-    const info = { plot: 'old', cast: '', director: '', genre: '', releaseDate: '', durationSecs: 0, poster: '', imdbId: '', tmdbId: '', year: 0 };
-    cacheStore.set('x1|vod_info|10', { key: 'x1|vod_info|10', timestamp: stale, data: info });
+    const info = { plot: 'old', cast: '', director: '', genre: '', releaseDate: '', durationSecs: 0, poster: '', imdbId: '', tmdbId: '', year: 0, trailer: '' };
+    cacheStore.set('x1|vod_info-v2|10', { key: 'x1|vod_info-v2|10', timestamp: stale, data: info });
     clientMock.getVodInfo.mockResolvedValue(null);
     expect(await loadVodInfo(account, '10')).toEqual(info);
     expect(setCachedCatalog).not.toHaveBeenCalled();
   });
 
+  it('does not reuse details cached before the trailer was read', async () => {
+    const oldInfo = { plot: 'old', cast: '', director: '', genre: '', releaseDate: '', durationSecs: 0, poster: '', imdbId: '', tmdbId: '', year: 0 };
+    cacheStore.set('x1|vod_info|10', { key: 'x1|vod_info|10', timestamp: Date.now(), data: oldInfo });
+    clientMock.getVodInfo.mockResolvedValueOnce({ ...oldInfo, plot: 'new', trailer: 'abcDEF_-123' });
+    const info = await loadVodInfo(account, '10');
+    expect(info?.trailer).toBe('abcDEF_-123');
+    expect(clientMock.getVodInfo).toHaveBeenCalled();
+  });
+
   it('caches VOD info and skips the write on a null response', async () => {
-    clientMock.getVodInfo.mockResolvedValueOnce({ plot: 'p', cast: '', director: '', genre: '', releaseDate: '', durationSecs: 0, poster: '', imdbId: '', tmdbId: '', year: 0 });
+    clientMock.getVodInfo.mockResolvedValueOnce({ plot: 'p', cast: '', director: '', genre: '', releaseDate: '', durationSecs: 0, poster: '', imdbId: '', tmdbId: '', year: 0, trailer: '' });
     const ok = await loadVodInfo(account, '10');
     expect(ok?.plot).toBe('p');
     expect(setCachedCatalog).toHaveBeenCalledWith(
-      'x1|vod_info|10',
+      'x1|vod_info-v2|10',
       ok,
       CONFIG.XTREAM.DEFAULT_CATALOG_REFRESH_INTERVAL_MS,
     );

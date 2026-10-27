@@ -151,6 +151,8 @@ export const PL_MESSAGES = {
   'catalog.noSeriesCategory': 'Brak seriali w tej kategorii.',
   'catalog.cast': 'Obsada',
   'catalog.director': 'Reżyser',
+  'catalog.trailer': 'Zwiastun',
+  'catalog.trailerUnavailable': 'Zwiastun niedostępny',
   'catalog.play': 'Odtwórz',
   'catalog.playFromStart': 'Odtwórz od początku',
   'catalog.addWatchlist': 'Dodaj do listy',

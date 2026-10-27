@@ -536,6 +536,8 @@ export interface VodInfo {
   imdbId: string;
   tmdbId: string;
   year: number;
+  /** YouTube video id of the trailer, or '' when the provider lists none. */
+  trailer: string;
 }
 
 export interface SeriesCategory {

@@ -136,6 +136,8 @@ export const ZH_CN_MESSAGES = {
   'catalog.noSeriesCategory': '此分类暂无剧集。',
   'catalog.cast': '演员',
   'catalog.director': '导演',
+  'catalog.trailer': '预告片',
+  'catalog.trailerUnavailable': '预告片不可用',
   'catalog.play': '播放',
   'catalog.playFromStart': '从头播放',
   'catalog.addWatchlist': '加入稍后观看',

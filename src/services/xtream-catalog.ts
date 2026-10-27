@@ -313,13 +313,16 @@ export function loadVodStreams(
   );
 }
 
+// `-v2`: cached details from before the trailer was read have none and must not be reused.
+const VOD_INFO_RESOURCE = 'vod_info-v2';
+
 export function loadVodInfo(
   account: PlaylistEntry,
   vodId: string,
   signal?: AbortSignal,
 ): Promise<VodInfo | null> {
   return cachedItem(
-    `${account.id}|vod_info|${vodId}`,
+    `${account.id}|${VOD_INFO_RESOURCE}|${vodId}`,
     signal,
     () => clientFor(account).getVodInfo(vodId, signal),
   );

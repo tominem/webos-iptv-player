@@ -5,7 +5,8 @@ import { StorageService } from '../services/storage-service';
 import { loadVodCategories, loadVodStreams, loadVodInfo } from '../services/xtream-catalog';
 import { xtreamVodUrl } from '../utils/xtream-url';
 import { CatalogView, type CollectionKind, type CollectionEntry } from './catalog-view';
-import { PLAY_ICON, REMOVE_ICON, watchlistIcon } from './icons';
+import { PLAY_ICON, REMOVE_ICON, TRAILER_ICON, watchlistIcon } from './icons';
+import { TrailerOverlay } from './trailer-overlay';
 import { showToast } from './toast';
 import { t, tp } from '../i18n';
 
@@ -25,6 +26,7 @@ export class Movies extends CatalogView<VodCategory, VodItem> {
   private currentInfo: VodInfo | null = null;
   private openedFromWatchlist = false;
   private detailController: AbortController | null = null;
+  private readonly trailer = new TrailerOverlay();
 
   protected loadCategories(
     account: PlaylistEntry,
@@ -44,7 +46,12 @@ export class Movies extends CatalogView<VodCategory, VodItem> {
   protected itemPoster(v: VodItem): string { return v.poster; }
   protected itemRating(v: VodItem): string { return v.rating; }
   protected itemCategoryId(v: VodItem): string { return v.categoryId; }
+  release(): void {
+    this.trailer.dispose();
+    super.release();
+  }
   protected clearDetail(): void {
+    this.trailer.dispose();
     this.detailController?.abort();
     this.detailController = null;
     this.currentVod = null;
@@ -141,6 +148,10 @@ export class Movies extends CatalogView<VodCategory, VodItem> {
       this.toggleWatchlist();
       return true;
     }
+    if (el.dataset.action === 'trailer') {
+      if (this.currentInfo?.trailer) void this.trailer.open(this.currentInfo.trailer);
+      return true;
+    }
     return false;
   }
 
@@ -189,6 +200,8 @@ export class Movies extends CatalogView<VodCategory, VodItem> {
     const a = this.account;
     if (!vod || !a) return;
     const saved = StorageService.getResume(a.id, 'vod', vod.streamId);
+    // The TV has one media pipeline: the movie must not share it with a parked trailer.
+    this.trailer.dispose();
     this.handlers.onPlayVod({
       url: this.vodUrl(vod),
       title: vod.name,
@@ -271,6 +284,7 @@ export class Movies extends CatalogView<VodCategory, VodItem> {
               <span class="detail-btn-icon">${raw(watchlistIcon(watchlisted))}</span>
               <span>${t(watchlisted ? 'catalog.removeWatchlist' : 'catalog.addWatchlist')}</span>
             </button>
+            ${this.trailerButton(info?.trailer)}
             ${saved ? html`
               <button class="detail-btn detail-btn-danger" data-focusable data-key="remove-resume" data-action="remove-resume">
                 <span class="detail-btn-icon">${raw(REMOVE_ICON)}</span>
@@ -282,5 +296,17 @@ export class Movies extends CatalogView<VodCategory, VodItem> {
       </div>
     `);
     this.settleDetailFocus();
+  }
+
+  // The service must be running to frame the player; the player is loaded out of sight now,
+  // so the select does not wait for it.
+  private trailerButton(trailer: string | undefined): Safe | string {
+    if (!trailer || !TrailerOverlay.available()) return '';
+    this.trailer.warm(trailer);
+    return html`
+      <button class="detail-btn" data-focusable data-key="trailer" data-action="trailer">
+        <span class="detail-btn-icon">${raw(TRAILER_ICON)}</span>
+        <span>${t('catalog.trailer')}</span>
+      </button>`;
   }
 }

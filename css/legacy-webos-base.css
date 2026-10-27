@@ -114,6 +114,7 @@ html.q-no-flex-gap .tsp-dots > * + * { margin-left: 8px; }
 html.q-no-flex-gap .home-tiles > * + * { margin-left: 24px; }
 html.q-no-flex-gap .home-tile > * + * { margin-top: 16px; }
 html.q-no-flex-gap .home-rail-track > * + * { margin-left: 20px; }
+html.q-no-flex-gap .trailer-loading > * + * { margin-top: 24px; }
 html.q-no-flex-gap .reminder-manager-back > * + *, html.q-no-flex-gap .reminder-manager-clear > * + *, html.q-no-flex-gap .reminder-manager-remove > * + * { margin-left: 10px; }
 html.q-no-flex-gap .reminder-manager-list > * + * { margin-top: 28px; }
 @supports not (display: grid) {

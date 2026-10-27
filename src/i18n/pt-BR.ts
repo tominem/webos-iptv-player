@@ -141,6 +141,8 @@ export const PT_BR_MESSAGES = {
   'catalog.noSeriesCategory': 'Nenhuma série nesta categoria.',
   'catalog.cast': 'Elenco',
   'catalog.director': 'Direção',
+  'catalog.trailer': 'Trailer',
+  'catalog.trailerUnavailable': 'Trailer indisponível',
   'catalog.play': 'Assistir',
   'catalog.playFromStart': 'Assistir do início',
   'catalog.addWatchlist': 'Adicionar à Minha lista',

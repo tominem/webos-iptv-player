@@ -151,6 +151,8 @@ export const UK_MESSAGES = {
   'catalog.noSeriesCategory': 'У цій категорії немає серіалів.',
   'catalog.cast': 'У ролях',
   'catalog.director': 'Режисер',
+  'catalog.trailer': 'Трейлер',
+  'catalog.trailerUnavailable': 'Трейлер недоступний',
   'catalog.play': 'Дивитися',
   'catalog.playFromStart': 'Дивитися спочатку',
   'catalog.addWatchlist': 'Додати до «Переглянути пізніше»',

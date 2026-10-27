@@ -163,6 +163,25 @@ export const CONFIG = {
     MAX_VISIBLE_ITEMS: 50,
   },
 
+  // A movie trailer plays from YouTube, framed by a page of the bundled service.
+  TRAILER: {
+    // Answers with no body; when it does not answer there is no trailer to show.
+    REACH_URL: 'https://www.youtube.com/generate_204',
+    REACH_TIMEOUT_MS: 5000,
+    // How long the player may take to start before the trailer is given up on.
+    START_TIMEOUT_MS: 20000,
+    // The player is loaded out of sight this long after a detail with a trailer opens.
+    WARM_DELAY_MS: 1200,
+    // A positive answer from REACH_URL is trusted for this long.
+    REACH_TTL_MS: 120000,
+    // Left and Right move the trailer by this many seconds.
+    SEEK_STEP: 10,
+    // The controls go away this long after the last key while the trailer plays.
+    CONTROLS_HIDE_MS: 4000,
+    // A time update from the player is ignored this long after a seek, so the bar does not jump back.
+    SEEK_HOLD_MS: 1200,
+  },
+
   // Home screen and the one-section-at-a-time memory budget.
   HOME: {
     RAIL_MAX: 12,

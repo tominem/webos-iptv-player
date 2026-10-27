@@ -141,6 +141,8 @@ export const DE_MESSAGES = {
   'catalog.noSeriesCategory': 'Keine Serien in dieser Kategorie.',
   'catalog.cast': 'Besetzung',
   'catalog.director': 'Regie',
+  'catalog.trailer': 'Trailer',
+  'catalog.trailerUnavailable': 'Trailer nicht verfügbar',
   'catalog.play': 'Abspielen',
   'catalog.playFromStart': 'Von Anfang an abspielen',
   'catalog.addWatchlist': 'Zur Merkliste hinzufügen',

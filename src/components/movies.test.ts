@@ -36,6 +36,15 @@ const { catalogMock, storageMock, watchlistState, toastMock } = vi.hoisted(() =>
 vi.mock('../services/xtream-catalog', () => catalogMock);
 vi.mock('../services/storage-service', () => ({ StorageService: storageMock }));
 vi.mock('./toast', () => ({ showToast: toastMock.showToast }));
+const trailerMock = vi.hoisted(() => ({ available: true, open: vi.fn(), dispose: vi.fn(), warm: vi.fn() }));
+vi.mock('./trailer-overlay', () => ({
+  TrailerOverlay: class {
+    static available(): boolean { return trailerMock.available; }
+    open(id: string): Promise<void> { return trailerMock.open(id); }
+    dispose(): void { trailerMock.dispose(); }
+    warm(id: string): void { trailerMock.warm(id); }
+  },
+}));
 
 import { Movies } from './movies';
 import { Focus, Tier } from '../navigation/focus-scope';
@@ -519,7 +528,7 @@ describe('Movies browse + grid', () => {
     }];
     catalogMock.loadVodInfo.mockResolvedValue({
       plot: '', cast: '', director: '', genre: '', releaseDate: '', durationSecs: 0,
-      poster: '', imdbId: '', tmdbId: '', year: 0,
+      poster: '', imdbId: '', tmdbId: '', year: 0, trailer: '',
     });
     const { view } = await openWith();
     expect(container.textContent).toContain('Watchlist');
@@ -544,7 +553,7 @@ describe('Movies browse + grid', () => {
     ];
     catalogMock.loadVodInfo.mockResolvedValue({
       plot: '', cast: '', director: '', genre: '', releaseDate: '', durationSecs: 0,
-      poster: '', imdbId: '', tmdbId: '', year: 0,
+      poster: '', imdbId: '', tmdbId: '', year: 0, trailer: '',
     });
     const { view, handlers } = await openWith();
     const tile = container.querySelector('[data-watchlist-item="42"]') as HTMLElement;
@@ -710,7 +719,7 @@ describe('Movies browse + grid', () => {
     watchlistState.entries = [saved('41', 3), saved('42', 2), saved('43', 1)];
     catalogMock.loadVodInfo.mockResolvedValue({
       plot: '', cast: '', director: '', genre: '', releaseDate: '', durationSecs: 0,
-      poster: '', imdbId: '', tmdbId: '', year: 0,
+      poster: '', imdbId: '', tmdbId: '', year: 0, trailer: '',
     });
     const { view } = await openWith();
     container.querySelector('[data-watchlist-item="42"]')!
@@ -730,7 +739,7 @@ describe('Movies browse + grid', () => {
   it('shows browse again after Back from a Search deep link', async () => {
     catalogMock.loadVodInfo.mockResolvedValue({
       plot: '', cast: '', director: '', genre: '', releaseDate: '', durationSecs: 0,
-      poster: '', imdbId: '', tmdbId: '', year: 0,
+      poster: '', imdbId: '', tmdbId: '', year: 0, trailer: '',
     });
     const { view } = await openWith([{ id: '1', name: 'Cat A' }], [vod('10', 'Movie One'), vod('11', 'Movie Two')]);
     const tile = container.querySelector('.catalog-tile[data-item-id="11"]') as HTMLElement;
@@ -754,7 +763,7 @@ describe('Movies browse + grid', () => {
   it('reloads a browse a Search deep link interrupted once it is shown again', async () => {
     catalogMock.loadVodInfo.mockResolvedValue({
       plot: '', cast: '', director: '', genre: '', releaseDate: '', durationSecs: 0,
-      poster: '', imdbId: '', tmdbId: '', year: 0,
+      poster: '', imdbId: '', tmdbId: '', year: 0, trailer: '',
     });
     catalogMock.loadVodCategories.mockReturnValueOnce(new Promise(() => {}));
     catalogMock.loadVodStreams.mockResolvedValue([vod('10', 'Movie One')]);
@@ -834,7 +843,7 @@ describe('Movies browse + grid', () => {
   it('lands on the first shown detail button when the focused one is gone', async () => {
     catalogMock.loadVodInfo.mockResolvedValue({
       plot: '', cast: '', director: '', genre: '', releaseDate: '', durationSecs: 0,
-      poster: '', imdbId: '', tmdbId: '', year: 0,
+      poster: '', imdbId: '', tmdbId: '', year: 0, trailer: '',
     });
     storageMock.getResume.mockReturnValue({ position: 60, duration: 600 } as never);
     const { view } = await openWith();
@@ -866,7 +875,7 @@ describe('Movies browse + grid', () => {
   it('rings a detail opened from Search after the pointer left the last one', async () => {
     catalogMock.loadVodInfo.mockResolvedValue({
       plot: '', cast: '', director: '', genre: '', releaseDate: '', durationSecs: 0,
-      poster: '', imdbId: '', tmdbId: '', year: 0,
+      poster: '', imdbId: '', tmdbId: '', year: 0, trailer: '',
     });
     const { view } = await openWith();
     await view.openItem(account, vod('98', 'First Find'), vi.fn());
@@ -896,7 +905,7 @@ describe('Movies browse + grid', () => {
     storageMock.getResume.mockReturnValue(null);
     resolveInfo({
       plot: '', cast: '', director: '', genre: '', releaseDate: '', durationSecs: 0,
-      poster: '', imdbId: '', tmdbId: '', year: 0,
+      poster: '', imdbId: '', tmdbId: '', year: 0, trailer: '',
     });
     await vi.waitFor(() =>
       expect(container.querySelector('.movies-detail [data-key="resume"]')).toBeNull());
@@ -907,7 +916,7 @@ describe('Movies browse + grid', () => {
   it('keeps a second deep-linked detail when the section is shown again', async () => {
     catalogMock.loadVodInfo.mockResolvedValue({
       plot: '', cast: '', director: '', genre: '', releaseDate: '', durationSecs: 0,
-      poster: '', imdbId: '', tmdbId: '', year: 0,
+      poster: '', imdbId: '', tmdbId: '', year: 0, trailer: '',
     });
     catalogMock.loadVodCategories.mockReturnValueOnce(new Promise(() => {}));
     const view = new Movies(container, { onRevealTabBar: vi.fn(), onBack: vi.fn(), onPlayVod: vi.fn() });
@@ -971,7 +980,7 @@ describe('Movies browse + grid', () => {
   it('finds the origin rail of a category id that needs selector escaping', async () => {
     catalogMock.loadVodInfo.mockResolvedValue({
       plot: '', cast: '', director: '', genre: '', releaseDate: '', durationSecs: 0,
-      poster: '', imdbId: '', tmdbId: '', year: 0,
+      poster: '', imdbId: '', tmdbId: '', year: 0, trailer: '',
     });
     const id = 'q"1\\';
     const { view } = await openWith([{ id, name: 'Cat Q' }], [vod('10', 'Movie One', id), vod('11', 'Movie Two', id)]);
@@ -1040,7 +1049,7 @@ describe('Movies browse + grid', () => {
     expect(focused?.dataset.categoryId).toBe('3');
   });
 
-  const noInfo = { plot: '', cast: '', director: '', genre: '', releaseDate: '', durationSecs: 0, poster: '', imdbId: '', tmdbId: '', year: 0 };
+  const noInfo = { plot: '', cast: '', director: '', genre: '', releaseDate: '', durationSecs: 0, poster: '', imdbId: '', tmdbId: '', year: 0, trailer: '' };
   const focusedKey = () => container.querySelector<HTMLElement>('.focused')?.dataset.key;
 
   it('returns focus to See all after detail, grid, and back to browse', async () => {
@@ -1378,7 +1387,7 @@ describe('Movies browse + grid', () => {
     const getResumeList = StorageService.getResumeList as ReturnType<typeof vi.fn>;
     getResumeList.mockReturnValue([]);
     catalogMock.loadVodInfo.mockResolvedValue({
-      plot: '', cast: '', director: '', genre: '', releaseDate: '', durationSecs: 0, poster: '', imdbId: '', tmdbId: '', year: 0,
+      plot: '', cast: '', director: '', genre: '', releaseDate: '', durationSecs: 0, poster: '', imdbId: '', tmdbId: '', year: 0, trailer: '',
     });
     const { view } = await openWith();
     expect(container.textContent).not.toContain('Continue Watching');
@@ -1398,6 +1407,83 @@ describe('Movies browse + grid', () => {
 });
 
 describe('Movies detail', () => {
+  describe('trailer', () => {
+    const info = (trailer: string) => ({
+      plot: '', cast: '', director: '', genre: '', releaseDate: '', durationSecs: 0,
+      poster: '', imdbId: '', tmdbId: '', year: 0, trailer,
+    });
+    async function openDetailWith(trailer: string) {
+      catalogMock.loadVodInfo.mockResolvedValue(info(trailer));
+      const { view } = await openWith();
+      container.querySelector<HTMLElement>('.catalog-tile[data-item-id="10"]')!
+        .dispatchEvent(new CustomEvent('nav:hover', { bubbles: true }));
+      pressKey(view, 'select');
+      await Promise.resolve(); await Promise.resolve();
+      return view;
+    }
+    const button = () => container.querySelector<HTMLElement>('[data-action="trailer"]');
+
+    beforeEach(() => {
+      trailerMock.available = true;
+      trailerMock.open.mockReset().mockResolvedValue(undefined);
+      trailerMock.dispose.mockClear();
+    });
+
+    it('offers the trailer the provider lists, and plays it on select', async () => {
+      const view = await openDetailWith('abcDEF_-123');
+      expect(button()?.textContent).toContain('Trailer');
+      button()!.dispatchEvent(new CustomEvent('nav:hover', { bubbles: true }));
+      pressKey(view, 'select');
+      expect(trailerMock.open).toHaveBeenCalledExactlyOnceWith('abcDEF_-123');
+    });
+
+    it('asks YouTube ahead of the select, only when it offers the button', async () => {
+      trailerMock.warm.mockClear();
+      await openDetailWith('abcDEF_-123');
+      expect(trailerMock.warm).toHaveBeenCalledWith('abcDEF_-123');
+    });
+
+    it('has no trailer button when none is listed', async () => {
+      trailerMock.warm.mockClear();
+      await openDetailWith('');
+      expect(button()).toBeNull();
+      expect(trailerMock.warm).not.toHaveBeenCalled();
+    });
+
+    it('has no trailer button when the service is not running', async () => {
+      trailerMock.available = false;
+      await openDetailWith('abcDEF_-123');
+      expect(button()).toBeNull();
+    });
+
+    it('puts the trailer away when the detail is left or the section is released', async () => {
+      const view = await openDetailWith('abcDEF_-123');
+      trailerMock.dispose.mockClear();
+      pressKey(view, 'back');
+      expect(trailerMock.dispose).toHaveBeenCalled();
+      trailerMock.dispose.mockClear();
+      view.release();
+      expect(trailerMock.dispose).toHaveBeenCalled();
+    });
+
+    it('gives up the parked trailer before the movie plays, since the TV has one media pipeline', async () => {
+      const view = await openDetailWith('abcDEF_-123');
+      trailerMock.dispose.mockClear();
+      container.querySelector<HTMLElement>('[data-action="play"]')!
+        .dispatchEvent(new CustomEvent('nav:hover', { bubbles: true }));
+      pressKey(view, 'select');
+      expect(trailerMock.dispose).toHaveBeenCalledTimes(1);
+    });
+
+    it('ignores a trailer select once the details are gone', async () => {
+      const view = await openDetailWith('abcDEF_-123');
+      const control = button()!;
+      view.release();
+      control.dispatchEvent(new CustomEvent('nav:hover', { bubbles: true }));
+      expect(trailerMock.open).not.toHaveBeenCalled();
+    });
+  });
+
   it('removes only the movie progress and moves focus off the disappearing detail action', async () => {
     storageMock.getResume.mockReturnValue({
       accountId: 'x1', kind: 'vod', itemId: '10', name: 'Title 1', poster: '', ext: 'mp4',
@@ -1423,7 +1509,7 @@ describe('Movies detail', () => {
   it('adds and removes the movie from Watchlist without losing button focus', async () => {
     catalogMock.loadVodInfo.mockResolvedValue({
       plot: '', cast: '', director: '', genre: '', releaseDate: '', durationSecs: 0,
-      poster: '', imdbId: '', tmdbId: '', year: 0,
+      poster: '', imdbId: '', tmdbId: '', year: 0, trailer: '',
     });
     const { view } = await openWith();
     const tile = container.querySelector('.catalog-tile[data-item-id="10"]') as HTMLElement;
@@ -1479,7 +1565,7 @@ describe('Movies detail', () => {
       { accountId: 'x1', kind: 'vod', itemId: '10', name: 'Movie One', poster: '', position: 900, duration: 3600, updatedAt: 1 },
     );
     catalogMock.loadVodInfo.mockResolvedValue({
-      plot: '', cast: '', director: '', genre: '', releaseDate: '', durationSecs: 3600, poster: '', imdbId: '', tmdbId: '', year: 0,
+      plot: '', cast: '', director: '', genre: '', releaseDate: '', durationSecs: 3600, poster: '', imdbId: '', tmdbId: '', year: 0, trailer: '',
     });
     const { view, handlers } = await openWith([{ id: '1', name: 'Cat A' }], [vod('10', 'Movie One')]);
     const tile = container.querySelector('.catalog-tile[data-item-id="10"]') as HTMLElement;
@@ -1497,7 +1583,7 @@ describe('Movies detail', () => {
   it('refreshes the detail actions when playback creates a resume point', async () => {
     catalogMock.loadVodInfo.mockResolvedValue({
       plot: '', cast: '', director: '', genre: '', releaseDate: '', durationSecs: 3600,
-      poster: '', imdbId: '', tmdbId: '', year: 0,
+      poster: '', imdbId: '', tmdbId: '', year: 0, trailer: '',
     });
     const { view } = await openWith();
     const tile = container.querySelector('.catalog-tile[data-item-id="10"]') as HTMLElement;
@@ -1515,7 +1601,7 @@ describe('Movies detail', () => {
   });
 
   it('backs out of detail to the browse view', async () => {
-    catalogMock.loadVodInfo.mockResolvedValue({ plot: '', cast: '', director: '', genre: '', releaseDate: '', durationSecs: 0, poster: '', imdbId: '', tmdbId: '', year: 0 });
+    catalogMock.loadVodInfo.mockResolvedValue({ plot: '', cast: '', director: '', genre: '', releaseDate: '', durationSecs: 0, poster: '', imdbId: '', tmdbId: '', year: 0, trailer: '' });
     const { view, handlers } = await openWith();
     const tile = container.querySelector('.catalog-tile[data-item-id="10"]') as HTMLElement;
     tile.dispatchEvent(new CustomEvent('nav:hover', { bubbles: true }));
@@ -1559,7 +1645,7 @@ describe('Movies detail', () => {
     const play = container.querySelector('[data-action="play"]') as HTMLElement;
     play.dispatchEvent(new CustomEvent('nav:hover', { bubbles: true })); // move focus to Play
     expect(container.querySelector('.focused')?.getAttribute('data-key')).toBe('play');
-    resolveInfo({ plot: 'x', cast: '', director: '', genre: '', releaseDate: '', durationSecs: 0, poster: '', imdbId: '', tmdbId: '', year: 0 });
+    resolveInfo({ plot: 'x', cast: '', director: '', genre: '', releaseDate: '', durationSecs: 0, poster: '', imdbId: '', tmdbId: '', year: 0, trailer: '' });
     await Promise.resolve(); await Promise.resolve(); // info re-render
     expect(container.querySelector('.focused')?.getAttribute('data-key')).toBe('play');
   });
@@ -1567,7 +1653,7 @@ describe('Movies detail', () => {
 
 describe('Movies deep-link (openItem)', () => {
   it('opens a movie detail directly and Back returns to Search via the callback', async () => {
-    catalogMock.loadVodInfo.mockResolvedValue({ plot: 'Deep plot.', cast: '', director: '', genre: '', releaseDate: '', durationSecs: 0, poster: '', imdbId: '', tmdbId: '', year: 0 });
+    catalogMock.loadVodInfo.mockResolvedValue({ plot: 'Deep plot.', cast: '', director: '', genre: '', releaseDate: '', durationSecs: 0, poster: '', imdbId: '', tmdbId: '', year: 0, trailer: '' });
     const handlers = { onRevealTabBar: vi.fn(), onBack: vi.fn(), onPlayVod: vi.fn() };
     const onDetailBack = vi.fn();
     const view = new Movies(container, handlers);

@@ -413,8 +413,18 @@ describe('XtreamClient VOD', () => {
     expect(info).toEqual({
       plot: 'A plot', cast: 'Actor', director: 'Dir', genre: 'Drama',
       releaseDate: '2020-01-01', durationSecs: 5400, poster: 'http://host/p.png', subtitles: [],
-      imdbId: '', tmdbId: '', year: 2020,
+      imdbId: '', tmdbId: '', year: 2020, trailer: '',
     });
+  });
+
+  it('reads the YouTube trailer id from a bare id or a link', async () => {
+    const trailerOf = async (value: string): Promise<string> => {
+      fetchTextMock.mockResolvedValue(JSON.stringify({ info: { youtube_trailer: value }, movie_data: {} }));
+      return (await createXtreamClient(creds).getVodInfo('10'))!.trailer;
+    };
+    expect(await trailerOf('abcDEF_-123')).toBe('abcDEF_-123');
+    expect(await trailerOf('https://www.youtube.com/watch?v=abcDEF_-123')).toBe('abcDEF_-123');
+    expect(await trailerOf('')).toBe('');
   });
 
   it('classifies malformed catalog JSON instead of returning an empty catalog', async () => {

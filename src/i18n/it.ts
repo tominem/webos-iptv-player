@@ -139,6 +139,8 @@ export const IT_MESSAGES = {
   'catalog.noSeriesCategory': 'Nessuna serie in questa categoria.',
   'catalog.cast': 'Cast',
   'catalog.director': 'Regia',
+  'catalog.trailer': 'Trailer',
+  'catalog.trailerUnavailable': 'Trailer non disponibile',
   'catalog.play': 'Riproduci',
   'catalog.playFromStart': 'Riproduci dall’inizio',
   'catalog.addWatchlist': 'Aggiungi alla mia lista',

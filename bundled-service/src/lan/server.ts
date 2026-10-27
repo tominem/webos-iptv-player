@@ -23,6 +23,7 @@ import {
 import { parseSetupState, SetupStateStore } from '../setup/state';
 import { isValidUploadId, UploadStore } from '../upload/store';
 import { forwardRequest, isValidUserAgent } from './proxy';
+import { isVideoId, trailerPageHtml } from '../trailer/trailer-page';
 
 export type ServiceChangeEvent = 'uploads-changed' | 'setup-changed';
 
@@ -148,6 +149,17 @@ export function startServer(
           return;
         }
         forwardRequest(req, res, { target, userAgent, proxyBase: 'http://' + host });
+      } else if (pathname === '/trailer' && req.method === 'GET') {
+        if (!isLoopback(req)) {
+          sendJson(res, 403, { error: 'Local access only' });
+          return;
+        }
+        const videoId = query('v') || '';
+        if (!isVideoId(videoId)) {
+          sendJson(res, 400, { error: 'Invalid video id' });
+          return;
+        }
+        send(res, 200, 'text/html; charset=utf-8', trailerPageHtml(videoId, query('autoplay') !== '0'));
       } else if ((pathname === '/' || pathname === '/setup') && req.method === 'GET') {
         send(res, 200, 'text/html; charset=utf-8', setupPageHtml());
       } else if (pathname === '/pair' && req.method === 'POST') {

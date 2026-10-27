@@ -4,6 +4,7 @@ import { createLogger } from '../utils/logger';
 import type { VodCategory, VodItem, VodInfo, SeriesCategory, SeriesItem, SeriesInfo, Episode, SidecarSubtitle } from '../types';
 import { CONFIG } from '../config';
 import { proxiedUrl } from './service-http';
+import { youtubeVideoId } from '../utils/youtube-id';
 
 const log = createLogger('Xtream');
 
@@ -500,6 +501,7 @@ export function createXtreamClient(creds: XtreamCredentials, accountId = '') {
         imdbId: toStr(i.imdb_id ?? i.imdb).replace(/^tt/i, ''),
         tmdbId: toStr(i.tmdb_id ?? i.tmdb),
         year: Number(toStr(i.releasedate ?? i.release_date).slice(0, 4)) || 0,
+        trailer: youtubeVideoId(toStr(i.youtube_trailer)),
       };
     },
 

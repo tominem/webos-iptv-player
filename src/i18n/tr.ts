@@ -136,6 +136,8 @@ export const TR_MESSAGES = {
   'catalog.noSeriesCategory': 'Bu kategoride dizi yok.',
   'catalog.cast': 'Oyuncular',
   'catalog.director': 'Yönetmen',
+  'catalog.trailer': 'Fragman',
+  'catalog.trailerUnavailable': 'Fragman kullanılamıyor',
   'catalog.play': 'Oynat',
   'catalog.playFromStart': 'Baştan oynat',
   'catalog.addWatchlist': 'İzleme Listesine Ekle',

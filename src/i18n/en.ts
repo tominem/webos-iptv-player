@@ -143,6 +143,8 @@ export const EN_MESSAGES = {
   'catalog.noSeriesCategory': 'No series in this category.',
   'catalog.cast': 'Cast',
   'catalog.director': 'Director',
+  'catalog.trailer': 'Trailer',
+  'catalog.trailerUnavailable': 'Trailer unavailable',
   'catalog.play': 'Play',
   'catalog.playFromStart': 'Play from start',
   'catalog.addWatchlist': 'Add to Watchlist',

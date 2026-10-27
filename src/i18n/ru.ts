@@ -151,6 +151,8 @@ export const RU_MESSAGES = {
   'catalog.noSeriesCategory': 'В этой категории нет сериалов.',
   'catalog.cast': 'В ролях',
   'catalog.director': 'Режиссёр',
+  'catalog.trailer': 'Трейлер',
+  'catalog.trailerUnavailable': 'Трейлер недоступен',
   'catalog.play': 'Смотреть',
   'catalog.playFromStart': 'Смотреть сначала',
   'catalog.addWatchlist': 'Добавить в «Смотреть позже»',

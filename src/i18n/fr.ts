@@ -141,6 +141,8 @@ export const FR_MESSAGES = {
   'catalog.noSeriesCategory': 'Aucune série dans cette catégorie.',
   'catalog.cast': 'Distribution',
   'catalog.director': 'Réalisation',
+  'catalog.trailer': 'Bande-annonce',
+  'catalog.trailerUnavailable': 'Bande-annonce indisponible',
   'catalog.play': 'Lire',
   'catalog.playFromStart': 'Lire depuis le début',
   'catalog.addWatchlist': 'Ajouter à Ma liste',

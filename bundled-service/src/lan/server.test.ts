@@ -81,6 +81,25 @@ describe('GET /info', () => {
   });
 });
 
+describe('GET /trailer', () => {
+  it('serves the player page for a video id over loopback', async () => {
+    const res = await fetch(`${baseUrl}/trailer?v=abcDEF_-123`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toMatch(/text\/html/);
+    expect(await res.text()).toContain('https://www.youtube.com/embed/abcDEF_-123?');
+  });
+
+  it('serves the page paused when asked not to autoplay', async () => {
+    const body = await (await fetch(`${baseUrl}/trailer?v=abcDEF_-123&autoplay=0`)).text();
+    expect(body).toContain('&autoplay=0&');
+  });
+
+  it('refuses anything that is not a video id', async () => {
+    expect((await fetch(`${baseUrl}/trailer`)).status).toBe(400);
+    expect((await fetch(`${baseUrl}/trailer?v=${encodeURIComponent('"><script>x')}`)).status).toBe(400);
+  });
+});
+
 describe('GET /setup', () => {
   it('serves the setup page HTML', async () => {
     const res = await fetch(setupUrl);
