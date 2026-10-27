@@ -58,6 +58,10 @@ export function registerLanService(service: LunaService, dataDir: string): void 
   // we close the HTTP server and complete the keepAlive activity).
   let keepAliveCreated = false;
   let bindInProgress = false;
+  // The port of the last bind. The app puts it in the URL of a stream it plays through
+  // the proxy, so a stop and start (the app was backgrounded, say, with a movie paused)
+  // asks for the same port again: the paused stream then resumes through the new bind.
+  let lastPort = 0;
 
   function broadcastChange(event: ServiceChangeEvent): void {
     if (subscribers.length === 0) return;
@@ -78,10 +82,16 @@ export function registerLanService(service: LunaService, dataDir: string): void 
     if (server || bindInProgress) return;
     bindInProgress = true;
     console.log('[lan] (re)binding HTTP server');
-    startServer(0, dataDir, broadcastChange, setupActions, setupState).then((r) => {
+    const bind = (port: number) => startServer(port, dataDir, broadcastChange, setupActions, setupState);
+    bind(lastPort).catch((err) => {
+      if (lastPort === 0) throw err;
+      console.warn('[lan] port ' + lastPort + ' is not free, taking another:', err);
+      return bind(0);
+    }).then((r) => {
       bindInProgress = false;
       server = r.server;
       actualPort = r.port;
+      lastPort = r.port;
       console.log('[lan] HTTP server ready on port ' + actualPort);
       if (!keepAliveCreated) {
         service.activityManager.create('keepAlive', () => { /* keep service alive */ });
