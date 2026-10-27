@@ -37,6 +37,8 @@ export const EN_MESSAGES = {
   'nav.switchAccount': 'Switch account',
   'search.all': 'Search channels, movies, and series…',
   'search.channels': 'Search channels…',
+  'search.movies': 'Search movies…',
+  'search.series': 'Search series…',
   'search.sidebarAll': 'Search all channels…',
   'search.sidebarPlaylist': 'Search {name}…',
   'search.ariaChannels': 'Search channels',
@@ -192,6 +194,7 @@ export const EN_MESSAGES = {
   'player.timeshift': 'TIMESHIFT',
   'player.remaining': '{duration} remaining',
   'player.upNext': 'Up next',
+  'player.nextEpisode': 'Next episode',
   'player.playingIn': {
     one: 'Starts in {count} second',
     other: 'Starts in {count} seconds',

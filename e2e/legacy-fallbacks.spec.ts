@@ -32,7 +32,7 @@ test('a modern engine keeps every polyfilled API native', async ({ page }) => {
   test.skip(isChromium53(), 'the simulation deliberately removes these');
   await routePlaylist(page);
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   const apis = await nativeApis(page, POLYFILLED_APIS);
@@ -43,7 +43,7 @@ test('the simulated engine really falls back to the polyfills', async ({ page })
   test.skip(!isChromium53(), 'only the simulation removes the natives');
   await routePlaylist(page);
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   const apis = await nativeApis(page, POLYFILLED_APIS);
@@ -87,7 +87,7 @@ test('a modern engine activates none of the legacy CSS fallbacks', async ({ page
   test.skip(isChromium53(), 'the simulation rewrites these blocks away');
   await routePlaylist(page);
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   const guards = await page.evaluate(() => {
@@ -129,7 +129,7 @@ test('the simulated engine measures both engine quirks', async ({ page }) => {
   test.skip(!isChromium53(), 'only the simulation lacks flex gap');
   await routePlaylist(page);
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
   expect(await page.evaluate(() => [...document.documentElement.classList]
     .filter((name) => /^q-/.test(name)).sort())).toEqual(['q-no-flex-gap', 'q-scroll-end-padding']);
@@ -138,7 +138,7 @@ test('the simulated engine measures both engine quirks', async ({ page }) => {
 test('the loading view keeps its spacing before the quirks are measured', async ({ page }) => {
   // The paint before app.js runs: no script, so no q-* class yet.
   await page.route('**/js/app.js', (route) => route.abort());
-  await page.goto('/');
+  await page.goto('/?start=live');
   // Layout offsets, since the spinning spinner's bounding box grows. A
   // string, because without app.js the simulation lacks the polyfills
   // Playwright needs to return an object.
@@ -157,7 +157,7 @@ test('the loading view stopgap steps aside once the quirks are measured', async 
   test.skip(!isChromium53(), 'only the simulation activates the stopgap');
   await routePlaylist(page);
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
   // Without the quirk class only the stopgap could space the loading view,
   // as it would on an engine with flex gap but no `inset`.
@@ -178,7 +178,7 @@ test('the simulation reaches the worker realm too', async ({ page }) => {
   await routePlaylist(page);
   await seedPlaylist(page);
   const workerPromise = page.waitForEvent('worker');
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   const worker = await workerPromise;
@@ -258,7 +258,7 @@ test('no flex-gap container separates an element from loose text', async ({ page
     localStorage.setItem('iptv_favorites',
       JSON.stringify([(h >>> 0).toString(16).padStart(8, '0')]));
   });
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   const offenders = new Set<string>();
@@ -323,7 +323,7 @@ test('no flex-gap container separates an element from loose text in the catalog'
 
   await seedXtream(page);
 
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   const offenders = new Set<string>();

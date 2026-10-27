@@ -16,7 +16,7 @@ async function openManagerWithNewPin(page: Page): Promise<void> {
   await routePlaylist(page);
   await routeLiveManifest(page);
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
 
   await enterTab(page, 'settings');
   await expect(page.locator('#manage-parental-controls')).toHaveText('Turn on');
@@ -125,7 +125,7 @@ test('disables Turn on where the PIN cannot be stored', async ({ page }) => {
   await neuterVideo(page);
   await routePlaylist(page);
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await enterTab(page, 'settings');
 
   const turnOn = page.locator('#manage-parental-controls');
@@ -209,7 +209,7 @@ test('channels hidden from the list are locked with their source', async ({ page
   await routePlaylist(page);
   await routeLiveManifest(page);
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   const pressKey = (keyCode: number) => page.evaluate(
     k => document.dispatchEvent(new KeyboardEvent('keydown', { keyCode: k, bubbles: true })),
     keyCode,
@@ -411,7 +411,7 @@ test('lists live playlists in a column and switches the Xtream account from the 
       source: 'xtream', xtream: { username: 'v', password: 'q' } });
     localStorage.setItem('iptv_playlists', JSON.stringify(playlists));
   });
-  await page.goto('/');
+  await page.goto('/?start=live');
   await enterTab(page, 'settings');
   await page.locator('#manage-parental-controls').click();
   const prompt = page.locator('.parental-pin-prompt');
@@ -463,7 +463,7 @@ test('the account menu opened from the D-pad shows one ring and Back returns it 
       source: 'xtream', xtream: { username: 'v', password: 'q' } });
     localStorage.setItem('iptv_playlists', JSON.stringify(playlists));
   });
-  await page.goto('/');
+  await page.goto('/?start=live');
   await createPinFromSettings(page);
   await page.mouse.move(0, 0);
 
@@ -494,7 +494,7 @@ test('closing the account menu with a click on the avatar lights the avatar unde
       source: 'xtream', xtream: { username: 'v', password: 'q' } });
     localStorage.setItem('iptv_playlists', JSON.stringify(playlists));
   });
-  await page.goto('/');
+  await page.goto('/?start=live');
   await createPinFromSettings(page);
 
   const view = page.locator('#view-parental-controls');
@@ -558,7 +558,7 @@ test('leaving the manager cancels its catalog loads', async ({ page }) => {
   });
   const aborted = page.waitForEvent('requestfailed', request =>
     request.url().includes('get_vod_categories'));
-  await page.goto('/');
+  await page.goto('/?start=live');
   await enterTab(page, 'settings');
   await page.locator('#manage-parental-controls').click();
   const prompt = page.locator('.parental-pin-prompt');
@@ -777,7 +777,7 @@ test('keeps a catalog category Partly locked after the manager is reopened', asy
   await neuterVideo(page);
   await routeLiveManifest(page);
   await seedVodAccount(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await enterTab(page, 'settings');
   const manage = page.locator('#manage-parental-controls');
   const prompt = page.locator('.parental-pin-prompt');
@@ -816,7 +816,7 @@ test('the D-pad walks a long list while only nearby rows are mounted', async ({ 
   await neuterVideo(page);
   await routeLiveManifest(page);
   await routeVodCatalog(page, [{ category_id: '1', category_name: 'Cat A' }], () => streams);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await createPinFromSettings(page);
 
   const view = page.locator('#view-parental-controls');
@@ -853,7 +853,7 @@ for (const key of ['ArrowLeft', 'Enter'] as const) {
     await neuterVideo(page);
     await routeLiveManifest(page);
     await routeVodCatalog(page, [{ category_id: '1', category_name: 'Cat A' }], () => streams);
-    await page.goto('/');
+    await page.goto('/?start=live');
     await createPinFromSettings(page);
 
     const view = page.locator('#view-parental-controls');
@@ -885,7 +885,7 @@ test('the D-pad resumes from a row that a wheel scroll unmounted', async ({ page
   await neuterVideo(page);
   await routeLiveManifest(page);
   await routeVodCatalog(page, [{ category_id: '1', category_name: 'Cat A' }], () => streams);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await createPinFromSettings(page);
 
   const view = page.locator('#view-parental-controls');
@@ -913,7 +913,7 @@ test('a focused row scrolled away and back by the wheel still shows its ring', a
   await neuterVideo(page);
   await routeLiveManifest(page);
   await routeVodCatalog(page, [{ category_id: '1', category_name: 'Cat A' }], () => streams);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await createPinFromSettings(page);
 
   const view = page.locator('#view-parental-controls');
@@ -945,7 +945,7 @@ test('a scrolled-away first group still leads Up to Lock suggested', async ({ pa
   await neuterVideo(page);
   await routeLiveManifest(page);
   await routeVodCatalog(page, categories, () => []);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await createPinFromSettings(page);
 
   const view = page.locator('#view-parental-controls');
@@ -974,7 +974,7 @@ test('Down from a scrolled-away last item leaves the list as it would in view', 
   await neuterVideo(page);
   await routeLiveManifest(page);
   await routeVodCatalog(page, [{ category_id: '1', category_name: 'Cat A' }], () => streams);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await createPinFromSettings(page);
 
   const view = page.locator('#view-parental-controls');
@@ -1018,7 +1018,7 @@ test('an item listed in two categories marks the one it was last loaded in Partl
     { category_id: '1', category_name: 'Cat A' },
     { category_id: '2', category_name: 'Cat B' },
   ], category => (category ? byCategory[category] ?? [] : byCategory[1]));
-  await page.goto('/');
+  await page.goto('/?start=live');
   await createPinFromSettings(page);
 
   const view = page.locator('#view-parental-controls');
@@ -1111,15 +1111,15 @@ test('relocking while recent searches are open keeps movies in the next search',
   await page.addInitScript(() => {
     localStorage.setItem('iptv_search_history', JSON.stringify(['Movie']));
   });
-  await page.goto('/');
+  await page.goto('/?start=live');
   await createPinFromSettings(page);
   await chooseOption(page, 'parental-conceal', 'hide-locked');
   await chooseOption(page, 'parental-duration', '5-minutes');
   await page.locator('[data-parental-back]').click();
 
-  await enterTab(page, 'live');
+  await enterTab(page, 'movies');
   await enterTab(page, 'search');
-  await expect(page.locator('#view-channels')).toBeVisible();
+  await expect(page.locator('#view-movies')).toBeVisible();
   const tile = page.locator('.search-history-dropdown .search-history-tile');
   await expect(tile).toHaveText(['Movie']);
   await page.locator('.tab-bar [data-lock-now]').click();
@@ -1147,7 +1147,7 @@ test('relocking while recent searches are open keeps movies in the next search',
 
 test('a search that opened locked content stays out of recent searches', async ({ page }) => {
   await seedVodAccount(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await createPinFromSettings(page);
   await page.locator('#parental-kind [data-value="vod"]').click();
   const catB = page.locator('[data-parental-group]').filter({ hasText: 'Cat B' });
@@ -1159,7 +1159,7 @@ test('a search that opened locked content stays out of recent searches', async (
   await page.locator('[data-parental-back]').click();
 
   // The unlock session shows the locked movie; opening it records nothing.
-  await enterTab(page, 'live');
+  await enterTab(page, 'movies');
   await enterTab(page, 'search');
   const input = page.locator('.tab-bar-search-input');
   await input.fill('Two');
@@ -1212,7 +1212,7 @@ test('shows a merged channel locked by its group in another playlist', async ({ 
       { id: 'p2', name: 'Bravo', url: 'http://host.example.com/b/playlist.m3u' },
     ]));
   });
-  await page.goto('/');
+  await page.goto('/?start=live');
   await enterTab(page, 'settings');
   await page.locator('#manage-parental-controls').click();
   const prompt = page.locator('.parental-pin-prompt');
@@ -1315,7 +1315,7 @@ test('a re-render keeps a pointer-hidden highlight hidden until the next key sho
   await neuterVideo(page);
   await routeLiveManifest(page);
   await routeVodCatalog(page, [{ category_id: '1', category_name: 'Cat A' }], () => streams);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await createPinFromSettings(page);
   const view = page.locator('#view-parental-controls');
   await view.locator('#parental-kind [data-value="vod"]').click();
@@ -1398,7 +1398,7 @@ test('the pointer on the account menu keeps one ring, and Back returns to the av
       source: 'xtream', xtream: { username: 'v', password: 'q' } });
     localStorage.setItem('iptv_playlists', JSON.stringify(playlists));
   });
-  await page.goto('/');
+  await page.goto('/?start=live');
   await createPinFromSettings(page);
   const view = page.locator('#view-parental-controls');
   const playlist = view.locator('.parental-column-source [data-parental-source]').first();

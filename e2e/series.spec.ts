@@ -59,7 +59,7 @@ test('Continue Watching updates the hero from saved episodes by pointer and remo
     }
     localStorage.setItem('iptv_resume', JSON.stringify(resume));
   });
-  await page.goto('/');
+  await page.goto('/?start=live');
   await enterTab(page, 'series');
   const view = page.locator('#view-series');
   const hero = view.locator('.catalog-hero');
@@ -84,7 +84,7 @@ test('browse Series, open a detail, and play an episode', async ({ page }) => {
   // Keep VOD alive so the empty mock episode file doesn't fire `error` and
   // auto-eject the player, which would race this test's own Back navigation.
   await neuterVideo(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   // Enter Series via the docked tab bar.
@@ -115,10 +115,10 @@ test('browse Series, open a detail, and play an episode', async ({ page }) => {
   await expect(page.locator('#view-series .episode-row[data-episode-id="10"]')).toContainText('Episode One');
 });
 
-test('Back walks Series detail -> browse -> Live instead of ejecting', async ({ page }) => {
+test('Back walks Series detail -> browse -> Home instead of ejecting', async ({ page }) => {
   await seedSeries(page);
   await routeLiveManifest(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   // Enter Series via the docked tab bar.
@@ -139,9 +139,9 @@ test('Back walks Series detail -> browse -> Live instead of ejecting', async ({ 
   await expect(page.locator('#view-series .catalog-rail-title')).toContainText('Cat A');
   await expect(page.locator('#view-channels')).toBeHidden();
 
-  // Second Back from the browse top level returns to Live.
+  // Second Back from the browse top level returns to the home screen.
   await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keydown', { keyCode: 461, bubbles: true })));
-  await expect(page.locator('#view-channels')).toBeVisible();
+  await expect(page.locator('#view-home')).toBeVisible();
 });
 
 test('episode playback suppresses the live channel sidebar and shows a VOD-only menu at the pointer edges', async ({ page }) => {
@@ -155,7 +155,7 @@ test('episode playback suppresses the live channel sidebar and shows a VOD-only 
     P.play = function () { return Promise.resolve(); };
     Object.defineProperty(P, 'src', { configurable: true, set() { /* no-op */ }, get() { return ''; } });
   });
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   // Enter Series, open a detail, and play an episode (VOD mode).
@@ -194,7 +194,7 @@ test('episode playback suppresses the live channel sidebar and shows a VOD-only 
 test('Down from the tab bar resumes the Series detail Up left', async ({ page }) => {
   await seedSeries(page);
   await routeLiveManifest(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
   await enterTab(page, 'series');
   await page.locator('.catalog-tile[data-item-id="1"]')
@@ -232,7 +232,7 @@ test('a key that only shows the ring brings a clipped tile into view', async ({ 
   await page.addInitScript(() => {
     localStorage.setItem('iptv_text_size', JSON.stringify('150'));
   });
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
   await enterTab(page, 'series');
   const tile = page.locator('#view-series .catalog-tile').first();
@@ -265,7 +265,7 @@ test('a key that only shows the ring brings a clipped tile into view', async ({ 
 test('opening the section with the pointer leaves the catalog where it loads', async ({ page }) => {
   await seedXtream(page, { catalog: 'large' });
   await routeLiveManifest(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
   await enterTab(page, 'series');
   const first = page.locator('#view-series .catalog-tile').first();

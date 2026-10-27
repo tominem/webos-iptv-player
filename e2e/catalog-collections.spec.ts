@@ -46,7 +46,7 @@ for (const section of ['movies', 'series'] as const) {
   for (const collection of ['continue', 'watchlist'] as const) {
     test(`${section} ${collection}: counted preview, independent removal, and remote navigation`, async ({ page }) => {
       await seedCollections(page);
-      await page.goto('/');
+      await page.goto('/?start=live');
       await enterTab(page, section);
       const rail = page.locator(`#view-${section} [data-rail-key="${collection}"]`);
       await expect(rail.locator('.catalog-tile:not(.catalog-see-all)')).toHaveCount(20);
@@ -92,7 +92,7 @@ for (const section of ['movies', 'series'] as const) {
 
 test('clears only the visible account and kind, preserves the other collection, and cancels safely', async ({ page }) => {
   await seedCollections(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await enterTab(page, 'movies');
   await page.locator('#view-movies [data-collection-manage="watchlist"]').click();
   const grid = layer(page);
@@ -124,7 +124,7 @@ test('clears only the visible account and kind, preserves the other collection, 
 for (const section of ['movies', 'series'] as const) {
   test(`${section}: returns to the same collection title after playback changes its order`, async ({ page }) => {
     await seedCollections(page);
-    await page.goto('/');
+    await page.goto('/?start=live');
     await enterTab(page, section);
     await page.locator(`#view-${section} [data-rail-key="continue"] [data-collection-see-all]`).click();
     const grid = layer(page, section);
@@ -146,7 +146,7 @@ for (const section of ['movies', 'series'] as const) {
 
 test('returns to a neighboring browse episode after completing direct playback', async ({ page }) => {
   await seedCollections(page, 4);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await enterTab(page, 'series');
   const rail = page.locator('#view-series [data-rail-key="continue"]');
   await rail.locator('[data-resume-episode="episode2"]').click();
@@ -163,7 +163,7 @@ test('returns to a neighboring browse episode after completing direct playback',
 for (const collection of ['continue', 'watchlist'] as const) {
   test(`leaves an emptied ${collection} grid after removing its final movie from detail`, async ({ page }) => {
     await seedCollections(page, 1);
-    await page.goto('/');
+    await page.goto('/?start=live');
     await enterTab(page, 'movies');
     await page.locator(`#view-movies [data-collection-manage="${collection}"]`).click();
     await page.keyboard.press('Escape');
@@ -184,7 +184,7 @@ for (const collection of ['continue', 'watchlist'] as const) {
 
 test('leaves an emptied collection after completing its final episode', async ({ page }) => {
   await seedCollections(page, 1);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await enterTab(page, 'series');
   await page.locator('#view-series [data-collection-manage="continue"]').click();
   await page.keyboard.press('Escape');
@@ -203,7 +203,7 @@ test('leaves an emptied collection after completing its final episode', async ({
 
 test('refreshes concealed collection counts when the unlock session expires without moving Settings focus', async ({ page }) => {
   await seedCollections(page, 1);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await enterTab(page, 'settings');
   await page.locator('#manage-parental-controls').click();
   const prompt = page.locator('.parental-pin-prompt');
@@ -243,7 +243,7 @@ test('refreshes concealed collection counts when the unlock session expires with
 
 test('keeps one ring through virtualized deletion, tab-bar handoff, and management exit', async ({ page }) => {
   await seedCollections(page, 200);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await enterTab(page, 'movies');
   await page.locator('#view-movies [data-collection-manage="watchlist"]').click();
   const grid = layer(page);
@@ -266,7 +266,7 @@ test('keeps one ring through virtualized deletion, tab-bar handoff, and manageme
 
 test('leaves a managed collection where each spaced wheel step stops it', async ({ page }) => {
   await seedCollections(page, 35);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await enterTab(page, 'series');
   await page.locator('#view-series [data-collection-manage="continue"]').click();
   const grid = layer(page, 'series');
@@ -307,7 +307,7 @@ test('leaves a managed collection where each spaced wheel step stops it', async 
 
 test('rejects a full Watchlist without replacing saved titles and shows an actionable message', async ({ page }) => {
   await seedCollections(page, 200);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await enterTab(page, 'movies');
   await page.locator('#view-movies [data-rail-key="cat:1"] .catalog-tile').first().click();
   await page.locator('#view-movies [data-action="watchlist"]').click();
@@ -321,7 +321,7 @@ test('rejects a full Watchlist without replacing saved titles and shows an actio
 
 test('offers management for a single title and returns to browse after its removal', async ({ page }) => {
   await seedCollections(page, 1);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await enterTab(page, 'series');
   const rail = page.locator('#view-series [data-rail-key="continue"]');
   await expect(rail.locator('.catalog-see-all')).toHaveCount(0);
@@ -335,7 +335,7 @@ test('offers management for a single title and returns to browse after its remov
 
 test('keeps the independent red-and-white remove icon aligned in every theme and text size', async ({ page }, testInfo) => {
   await seedCollections(page);
-  await page.goto('/?pseudo=1');
+  await page.goto('/?pseudo=1&start=live');
   await enterTab(page, 'movies');
   await page.locator('#view-movies [data-collection-manage="continue"]').click();
   const grid = layer(page);

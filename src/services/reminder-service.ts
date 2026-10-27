@@ -270,16 +270,24 @@ class ReminderServiceImpl {
       !r.answered && r.startMs <= now && now < r.stopMs && this.channelExists(r.channelKey));
   }
 
+  // Whether any reminder is on air, without judging its channel (the list may not be in memory).
+  anyOnAir(now = Date.now()): boolean {
+    return this.list().some(r => !r.answered && r.startMs <= now && now < r.stopMs);
+  }
+
   prune(now = Date.now()): void {
     const list = this.list();
+    // With no channel list in memory (a released Live section) a missing channel proves nothing.
+    const judged = PlaylistService.loaded;
     const kept = list.filter(r => now < r.stopMs
-      && (this.channelExists(r.channelKey) || this.unavailableBecauseDisabled(r)));
+      && (!judged || this.channelExists(r.channelKey) || this.unavailableBecauseDisabled(r)));
     if (kept.length !== list.length) {
       StorageService.setReminders(kept);
       for (const r of list) {
         if (!kept.includes(r)) this.cancelSchedule(r.channelKey, r.startMs);
       }
     }
+    if (!judged) return;
     for (const r of kept) {
       if (!this.channelExists(r.channelKey)) {
         this.cancelSchedule(r.channelKey, r.startMs);

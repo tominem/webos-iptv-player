@@ -40,6 +40,7 @@ function snapshot(overrides: Partial<PlayerOsdSnapshot> = {}): PlayerOsdSnapshot
     catchup: null,
     vodTitle: null,
     upNextSeconds: 0,
+    hasNextEpisode: false,
     dvr: null,
     nowPlaying: null,
     upcoming: null,
@@ -80,6 +81,7 @@ describe('PlayerOsd', () => {
       onPauseToggle: vi.fn(),
       onGoLive: vi.fn(),
       onResync: vi.fn(),
+      onNextEpisode: vi.fn(),
       onPlayNext: vi.fn(),
       onCancelNext: vi.fn(),
     };
@@ -89,6 +91,114 @@ describe('PlayerOsd', () => {
   afterEach(() => {
     vi.useRealTimers();
     document.body.innerHTML = '';
+  });
+
+  describe('next episode button', () => {
+    const button = () => container.querySelector<HTMLElement>('[data-next-episode]');
+
+    it('is drawn only when an episode follows', () => {
+      state = snapshot({ playback: playback(120, 30), channel: null, vodTitle: 'Episode 1' });
+      osd.render();
+      expect(button()).toBeNull();
+      state = { ...state, hasNextEpisode: true };
+      osd.render();
+      expect(button()).not.toBeNull();
+      expect(button()?.getAttribute('aria-label')).toBe('Next episode');
+    });
+
+    it('starts the next episode when it is clicked, and not for a click elsewhere', () => {
+      state = snapshot({
+        playback: playback(120, 30), channel: null, vodTitle: 'Episode 1', hasNextEpisode: true,
+      });
+      osd.render();
+      button()!.getBoundingClientRect = () => rect(500, 10, 30, 30);
+      container.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 700, clientY: 20 }));
+      expect(callbacks.onNextEpisode).not.toHaveBeenCalled();
+      container.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 510, clientY: 20 }));
+      expect(callbacks.onNextEpisode).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe('a render in the middle of a seek', () => {
+    it('keeps the bar and clock at the target, not the playing position', () => {
+      state = snapshot({ playback: playback(120, 30), channel: null, vodTitle: 'Video 1' });
+      osd.show();
+      osd.showSeekPreview(0.75, '1:30');
+      osd.render();
+      expect(container.querySelector<HTMLElement>('.osd-progress-bar')?.style.width).toBe('75%');
+      expect(container.querySelector('.osd-time-current')?.textContent).toBe('1:30');
+      osd.hideSeekPreview();
+      osd.render();
+      expect(container.querySelector<HTMLElement>('.osd-progress-bar')?.style.width).toBe('25%');
+      expect(container.querySelector('.osd-time-current')?.textContent).toBe('0:30');
+    });
+  });
+
+  describe('seek preview', () => {
+    const popup = () => container.querySelector('.osd-seek-preview');
+
+    beforeEach(() => {
+      state = snapshot({ playback: playback(7200, 600), channel: null, vodTitle: 'Movie' });
+      osd.show();
+    });
+
+    it('moves the bar and the clock to the target and shows the preview there', () => {
+      osd.showSeekPreview(0.5, '1:00:00');
+      expect((container.querySelector('.osd-progress-bar') as HTMLElement).style.width).toBe('50%');
+      expect(container.querySelector('.osd-time-current')?.textContent).toBe('1:00:00');
+      expect(popup()?.classList.contains('hidden')).toBe(false);
+      expect(popup()?.querySelector('.osd-seek-preview-time')?.textContent).toBe('1:00:00');
+    });
+
+    it('stops the bar easing while previewing, and eases again after', () => {
+      const osdEl = () => container.querySelector('#player-osd')!;
+      osd.showSeekPreview(0.5, '1:00:00');
+      expect(osdEl().classList.contains('scrubbing')).toBe(true);
+      osd.hideSeekPreview();
+      expect(osdEl().classList.contains('scrubbing')).toBe(false);
+    });
+
+    it('keeps the OSD up while the keys move', () => {
+      osd.showSeekPreview(0.5, '1:00:00');
+      vi.advanceTimersByTime(CONFIG.PLAYER.DEFAULT_PLAYER_OSD_TIMEOUT_MS - 1);
+      osd.showSeekPreview(0.6, '1:12:00');
+      vi.advanceTimersByTime(CONFIG.PLAYER.DEFAULT_PLAYER_OSD_TIMEOUT_MS - 1);
+      expect(osd.isVisible()).toBe(true);
+    });
+
+    it('shows the OSD when it was hidden', () => {
+      osd.hide();
+      osd.showSeekPreview(0.1, '12:00');
+      expect(osd.isVisible()).toBe(true);
+    });
+
+    it('does not let the playing position pull the bar back while previewing', () => {
+      osd.showSeekPreview(0.5, '1:00:00');
+      osd.refreshProgress();
+      expect((container.querySelector('.osd-progress-bar') as HTMLElement).style.width).toBe('50%');
+    });
+
+    it('goes back to following playback once the preview is hidden', () => {
+      osd.showSeekPreview(0.5, '1:00:00');
+      osd.hideSeekPreview();
+      expect(popup()?.classList.contains('hidden')).toBe(true);
+      osd.refreshProgress();
+      expect((container.querySelector('.osd-progress-bar') as HTMLElement).style.width)
+        .toBe(`${String(600 / 7200 * 100)}%`);
+    });
+
+    it('hides the preview with the OSD', () => {
+      osd.showSeekPreview(0.5, '1:00:00');
+      osd.hide();
+      expect(popup()?.classList.contains('hidden')).toBe(true);
+    });
+
+    it('puts a frame in the preview', () => {
+      const canvas = document.createElement('canvas');
+      osd.showSeekPreview(0.5, '1:00:00');
+      osd.setSeekPreviewFrame(canvas);
+      expect(popup()?.contains(canvas)).toBe(true);
+    });
   });
 
   it('shows, hides, auto-reveals, and stays visible while paused', () => {

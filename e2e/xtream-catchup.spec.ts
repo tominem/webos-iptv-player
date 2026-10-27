@@ -78,7 +78,7 @@ async function setup(page: Page, hasArchive = true): Promise<void> {
 
 test('plays an archived Xtream program through the provider timeshift endpoint', async ({ page }) => {
   await setup(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   const archiveRequest = page.waitForRequest(request =>
@@ -100,7 +100,7 @@ test('plays an archived Xtream program through the provider timeshift endpoint',
 
 test('blocks an Xtream program whose archive recording is unavailable', async ({ page }) => {
   await setup(page, false);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   const archiveResponse = page.waitForResponse(response =>
@@ -141,7 +141,7 @@ test('resumes Xtream Catch-up directly from Recently Watched', async ({ page }) 
     end: Date.parse('2024-03-09T11:00:00Z'),
     now: NOW.getTime(),
   });
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
   await page.locator('[data-group="builtin:recently-watched"]').click();
   await expect(page.locator('.recent-catchup')).toContainText('Earlier Show');

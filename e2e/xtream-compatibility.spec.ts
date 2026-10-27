@@ -59,7 +59,7 @@ test('loads live channels from Player API when get.php is unavailable', async ({
   const server = await startServer('player-api-only');
   await seedAccount(page, server);
 
-  await page.goto('/');
+  await page.goto('/?start=live');
 
   const channels = page.locator('.channel-main .channel-item');
   await expect(channels).toHaveCount(2);
@@ -82,7 +82,7 @@ test('constructs an HLS live URL when categories are unsupported', async ({ page
   const server = await startServer('uncategorized-hls');
   await seedAccount(page, server, 'm3u8');
 
-  await page.goto('/');
+  await page.goto('/?start=live');
 
   const channel = page.locator('.channel-main .channel-item').first();
   await expect(channel).toContainText('Alpha');
@@ -98,7 +98,7 @@ test('supports XC M3U catch-up and the legacy action spelling', async ({ page })
   await seedAccount(page, server, 'm3u8');
   await page.clock.setFixedTime(NOW);
 
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   const legacyAction = server.waitForRequest(
@@ -123,7 +123,7 @@ test('falls through failed timeshift path variants in order', async ({ page }) =
   await seedAccount(page, server);
   await page.clock.setFixedTime(NOW);
 
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   await openEarlierProgramme(page);

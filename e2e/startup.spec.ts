@@ -142,7 +142,7 @@ test('channels render while service startup is pending without duplicate work', 
   await seedPlaylist(page);
   await installStartupHarness(page, { visibility: 'hidden' });
 
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
   expect(await startupProbe(page)).toMatchObject({
     starts: 1,
@@ -170,7 +170,7 @@ test('service event subscription is replaced across background restarts', async 
   await seedPlaylist(page);
   await installStartupHarness(page);
 
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect.poll(async () => (await startupProbe(page)).starts).toBe(1);
   await releaseServiceStart(page);
   await expect.poll(async () => (await startupProbe(page)).subscriptions).toBe(1);
@@ -213,7 +213,7 @@ test('uploaded-only startup enters channels after background reconciliation', as
     }));
   await installStartupHarness(page);
 
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-settings')).toBeVisible();
   await releaseServiceStart(page);
 
@@ -238,7 +238,7 @@ test('dev-mode query replaces the reminder fallback activity', async ({ page }) 
   });
   await installStartupHarness(page, { devMode: true });
 
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect.poll(async () => (await startupProbe(page)).activities.length).toBe(1);
   expect((await startupProbe(page)).activities[0].method)
     .toBe('luna://com.webos.notification/createToast');
@@ -275,7 +275,7 @@ test('an expired playlist cache boots at once and refreshes in the background', 
   });
 
   try {
-    await page.goto('/');
+    await page.goto('/?start=live');
     const names = page.locator('.channel-main .channel-name');
     await expect(names).toHaveText(['Channel One', 'Channel Two']);
 

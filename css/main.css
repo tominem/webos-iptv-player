@@ -168,6 +168,9 @@ html, body {
   height: 1080px;
 }
 
+/* The splash comes first in the document but must cover whichever view is up. */
+#view-loading { z-index: 100; }
+
 .hidden {
   display: none !important;
 }

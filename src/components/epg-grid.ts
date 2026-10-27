@@ -180,6 +180,21 @@ export class EpgGrid {
   /** Re-snap the day selection to "today". Called on a full reload: the display
    *  timezone may have changed, which shifts the day boundaries and makes the
    *  remembered day *index* point at the wrong day. */
+  // Leaving Live for good: drop every list the guide pinned so the channels can be freed.
+  release(): void {
+    this.groupOptions = [];
+    this.groupOptionsChannels = null;
+    this.groupOptionsRevision = -1;
+    this.visibleChannelRoot = null;
+    this.visibleChannelRevision = -1;
+    this.visibleChannels = [];
+    this.channelSearchResults = null;
+    this.channelSearchResultSource = null;
+    this.programmeSource = null;
+    this.measuredProgrammes.clear();
+    morph(this.container, html``);
+  }
+
   resetDay(): void {
     this.dayInitialized = false;
     this.selectedDay = 0;

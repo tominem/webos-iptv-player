@@ -14,7 +14,7 @@ test('disabling every M3U source hides channels until the source is enabled agai
   await routePlaylist(page);
   await routeLiveManifest(page);
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('.channel-main .channel-item')).toHaveCount(2);
 
   await enterTab(page, 'settings');
@@ -108,7 +108,7 @@ test('disabling the only Xtream account hides its sections until re-enabled', as
       xtream: { username: 'u1', password: 'p1' },
     }]));
   });
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('[data-section="movies"]')).toBeVisible();
   await expect(page.locator('[data-section="series"]')).toBeVisible();
   await expect(page.locator('.account-avatar')).toBeVisible();

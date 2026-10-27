@@ -56,9 +56,7 @@ vi.mock('./idb-cache', () => ({
 import {
   getSearchCatalogExpiresAt,
   loadAllSeries,
-  clearPrefetchedCatalogs,
   loadAllVodStreams,
-  prefetchSearchCatalog,
   loadSeries,
   loadSeriesCategories,
   loadSeriesInfo,
@@ -523,20 +521,6 @@ describe('xtream-catalog whole-catalog (search)', () => {
     });
 
     describe('whole-list request', () => {
-      afterEach(() => {
-        clearPrefetchedCatalogs();
-      });
-
-      it('serves a prefetched load without asking the provider again', async () => {
-        items.mockImplementation(async (categoryId?: string) =>
-          categoryId === undefined ? [first, second, third] : []);
-
-        prefetchSearchCatalog(account);
-        expect(await load(account, undefined, { wholeList: true })).toEqual([first, second, third]);
-
-        expect(items.mock.calls.map(call => call[0])).toEqual([undefined]);
-      });
-
       it('fetches the list once and caches only the whole snapshot', async () => {
         items.mockImplementation(async (categoryId?: string) =>
           categoryId === undefined ? [first, second, third] : []);

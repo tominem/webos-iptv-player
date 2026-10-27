@@ -4,6 +4,7 @@ import { morph } from '../utils/morph';
 import { CONFIG } from '../config';
 import { SEARCH_ICON, UNLOCK_ICON } from './icons';
 import { AccountSwitcher, type AccountMenuCloseReason } from './account-switcher';
+import type { SearchScope } from './search';
 
 // `outside` is narrowed to a click on focusable content, which takes input and
 // releases the bar's focus; `bar` is a click on the bar outside the avatar
@@ -26,14 +27,18 @@ type SearchCollapseReason = 'toggle' | 'back' | 'escape' | 'dismiss' | 'hidden' 
 
 // The single source of truth for the sections: order, label, the view each maps
 // to, and whether it needs an Xtream account.
+// `group` is the content section a tab belongs to; Settings and Search belong to all.
 export const SECTIONS = [
-  { id: 'live', labelKey: 'nav.live', view: 'channels', xtreamOnly: false },
-  { id: 'epg', labelKey: 'nav.epg', view: 'epg', xtreamOnly: false },
-  { id: 'movies', labelKey: 'nav.movies', view: 'movies', xtreamOnly: true },
-  { id: 'series', labelKey: 'nav.series', view: 'series', xtreamOnly: true },
-  { id: 'settings', labelKey: 'nav.settings', view: 'settings', xtreamOnly: false },
-  { id: 'search', labelKey: 'nav.search', view: 'search', xtreamOnly: false },
+  { id: 'live', labelKey: 'nav.live', view: 'channels', xtreamOnly: false, group: 'live' },
+  { id: 'epg', labelKey: 'nav.epg', view: 'epg', xtreamOnly: false, group: 'live' },
+  { id: 'movies', labelKey: 'nav.movies', view: 'movies', xtreamOnly: true, group: 'movies' },
+  { id: 'series', labelKey: 'nav.series', view: 'series', xtreamOnly: true, group: 'series' },
+  { id: 'settings', labelKey: 'nav.settings', view: 'settings', xtreamOnly: false, group: 'all' },
+  { id: 'search', labelKey: 'nav.search', view: 'search', xtreamOnly: false, group: 'all' },
 ] as const;
+
+// Which section's tabs the bar shows: one content section at a time, or every tab.
+export type TabContext = 'all' | 'live' | 'movies' | 'series';
 
 export type Section = typeof SECTIONS[number]['id'];
 type SectionDef = typeof SECTIONS[number];
@@ -71,6 +76,9 @@ interface TabBarHandlers {
   onAccountMenuClose: (reason: TabBarAccountMenuCloseReason, hit?: Element) => void;
   // End a parental unlock session before it times out.
   onLockNow: () => void;
+  // Back on a bar that only names its section: true when the host took it
+  // (a quick second Back leaves the section); false hands the keys back to the content.
+  onBack?: () => boolean;
 }
 
 // Persistent, docked top section bar (hidden on the full-screen player / EPG).
@@ -82,6 +90,11 @@ export class TabBar {
   private el: HTMLElement | null = null;
   private handlers: TabBarHandlers;
   private sections: readonly SectionDef[] = FULL_SECTIONS;
+  private searchScope: SearchScope = 'all';
+  private context: TabContext = 'all';
+  private shownId: Section = 'live';
+  // Inside a section the bar names it without making the name a stop for the keys.
+  private labelOnly = false;
   private hasXtream = true;
   private _shown = false;   // docked & visible on the current view
   private _focused = false; // holds input focus (ring + key capture)
@@ -124,6 +137,11 @@ export class TabBar {
 
   private get accountShown(): boolean { return this.accounts.length > 0; }
   // Focus targets = the sections, then "Lock now" and the account avatar when present.
+  // The first stop for the keys: a label that only names the section is skipped.
+  private firstStop(): number {
+    return this.labelOnly ? 1 : 0;
+  }
+
   private ringLength(): number {
     return this.sections.length + (this.lockShown ? 1 : 0) + (this.accountShown ? 1 : 0);
   }
@@ -132,6 +150,12 @@ export class TabBar {
     return this.accountShown
       && this.focusIndex === this.sections.length + (this.lockShown ? 1 : 0);
   }
+  // Where the keys land on the bar: the active tab, or Search when the only tab is a label.
+  private homeIndex(): number {
+    const target = this.labelOnly ? 'search' : this.active;
+    return Math.max(0, this.sections.findIndex((s) => s.id === target));
+  }
+
   private focusKey(): string {
     if (this.onLock()) return 'lock-now';
     if (this.onAccount()) return 'account-avatar';
@@ -151,17 +175,49 @@ export class TabBar {
     if (this.lockShown === active) return;
     this.lockShown = active;
     if (this.focusIndex >= this.sections.length) {
-      this.focusIndex = Math.max(0, this.sections.findIndex((s) => s.id === this.active));
+      this.focusIndex = this.homeIndex();
     }
     if (this._shown) this.render();
   }
 
   setSections(hasXtream: boolean): void {
     this.hasXtream = hasXtream;
-    this.sections = hasXtream ? FULL_SECTIONS : LITE_SECTIONS;
-    if (!this.sections.some((s) => s.id === this.active)) this.active = 'live';
-    this.focusIndex = Math.max(0, this.sections.findIndex((s) => s.id === this.active));
+    this.applySections();
+  }
+
+  // Inside a content section the bar shows only that section's own label (and
+  // Settings or the Guide while one of those is open), plus Search: the other
+  // sections are chosen from the home screen. An account without that section
+  // keeps its whole set.
+  setContext(context: TabContext): void {
+    this.context = context;
+    this.applySections();
+  }
+
+  private applySections(): void {
+    const base = this.hasXtream ? FULL_SECTIONS : LITE_SECTIONS;
+    const primary = this.context === 'all' ? undefined : base.find((s) => s.group === this.context);
+    this.labelOnly = !!primary;
+    if (!primary) {
+      this.sections = base;
+      if (!this.sections.some((s) => s.id === this.active)) this.active = this.sections[0].id;
+    } else {
+      const own = base.filter((s) => s.group === this.context || s.id === 'settings');
+      const shown = own.find((s) => s.id === this.active)
+        ?? own.find((s) => s.id === this.shownId) ?? primary;
+      this.shownId = shown.id;
+      this.sections = [shown, base.find((s) => s.id === 'search')!];
+      // Search keeps the section it opened from.
+      if (this.active !== 'search') this.active = shown.id;
+    }
+    this.focusIndex = this.homeIndex();
     if (this._shown) this.render();
+  }
+
+  // The section the search box answers for; it names its scope in the placeholder.
+  setSearchScope(scope: SearchScope): void {
+    this.searchScope = scope;
+    if (this._shown) this.mountSearch();
   }
 
   setAccounts(accounts: PlaylistEntry[], selectedId: string): void {
@@ -169,7 +225,7 @@ export class TabBar {
     this.selectedAccountId = selectedId;
     // If the avatar just disappeared while focused on it, park focus on the active tab.
     if (!this.accountShown && this.focusIndex >= this.sections.length + (this.lockShown ? 1 : 0)) {
-      this.focusIndex = Math.max(0, this.sections.findIndex((s) => s.id === this.active));
+      this.focusIndex = this.homeIndex();
     }
     this.switcher?.setAccounts(accounts, selectedId);
     if (this._shown) this.render();
@@ -191,6 +247,10 @@ export class TabBar {
   setActive(section: Section): void {
     if (section !== 'search' && this.searchExpanded) this.dropSearch('section-change');
     this.active = section;
+    if (this.context !== 'all') {
+      this.applySections();
+      return;
+    }
     this.focusIndex = Math.max(0, this.sections.findIndex((s) => s.id === section));
     if (this._shown) this.render();
   }
@@ -237,7 +297,7 @@ export class TabBar {
   focus(): void {
     if (!this._shown) return;
     this.setFocused(true);
-    this.focusIndex = Math.max(0, this.sections.findIndex((s) => s.id === this.active));
+    this.focusIndex = this.homeIndex();
     this.render();
     if (this.active === 'search' && this.searchExpanded) {
       this.el?.querySelector<HTMLInputElement>('.tab-bar-search-input')?.focus();
@@ -350,11 +410,11 @@ export class TabBar {
     }
     switch (action) {
       case 'left':
-        this.focusIndex = (this.focusIndex - 1 + this.ringLength()) % this.ringLength();
+        this.focusIndex = this.focusIndex - 1 < this.firstStop() ? this.ringLength() - 1 : this.focusIndex - 1;
         this.afterMove();
         break;
       case 'right':
-        this.focusIndex = (this.focusIndex + 1) % this.ringLength();
+        this.focusIndex = this.focusIndex + 1 >= this.ringLength() ? this.firstStop() : this.focusIndex + 1;
         this.afterMove();
         break;
       case 'select':
@@ -368,12 +428,15 @@ export class TabBar {
         } else if (this.onAccount()) {
           this.switcher?.openMenu('key');
         } else if (this.sections[this.focusIndex].id === 'search') {
-          this.expandSearch('key');
+          // With only a label beside it, Down gives the keys back to the content.
+          if (this.labelOnly && action === 'down') this.enterActive();
+          else this.expandSearch('key');
         } else {
           this.enterActive();
         }
         break;
       case 'back':
+        if (this.labelOnly && this.handlers.onBack?.()) break;
         this.enterActive();
         break;
       case 'up':
@@ -488,6 +551,9 @@ export class TabBar {
   }
 
   private searchPlaceholder(): string {
+    if (this.searchScope === 'live') return t('search.channels');
+    if (this.searchScope === 'movies') return t('search.movies');
+    if (this.searchScope === 'series') return t('search.series');
     return this.hasXtream
       ? t('search.all')
       : t('search.channels');
@@ -509,6 +575,9 @@ export class TabBar {
       <div class="tab-bar-inner" data-nav-container>
         <span class="tab-bar-title">${CONFIG.APP_NAME}</span>
         ${this.sections.filter((s) => s.id !== 'search').map((s) => {
+          if (this.labelOnly) {
+            return html`<span class="tab-bar-label" data-section="${s.id}">${t(s.labelKey)}</span>`;
+          }
           const activeCls = s.id === this.active ? 'active' : '';
           return html`
           <button class="tab-bar-item ${activeCls}"

@@ -1411,6 +1411,261 @@ describe('Player VOD mode', () => {
     expect(player.isVod()).toBe(true);
   });
 
+  describe('seek preview', () => {
+    let video: HTMLVideoElement;
+    let frames: { available: boolean; frameAt: ReturnType<typeof vi.fn>; release: ReturnType<typeof vi.fn> };
+    let created: string[];
+    const popup = () => container.querySelector('.osd-seek-preview');
+    const label = () => popup()?.querySelector('.osd-seek-preview-time')?.textContent;
+    const previewShown = () => !!popup() && !popup()!.classList.contains('hidden');
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      video = fakeVideo(7200);
+      player.init(video);
+      created = [];
+      frames = { available: true, frameAt: vi.fn(async () => document.createElement('canvas')), release: vi.fn() };
+      player.createFrameSource = (url: string) => {
+        created.push(url);
+        return frames;
+      };
+      player.playVod(req());
+      (video as unknown as { src: string }).src = 'http://host/movie.mp4';
+    });
+
+    afterEach(() => vi.useRealTimers());
+
+    it('shows only the time on webOS, where a second video would disturb the movie', async () => {
+      const agent = vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Mozilla/5.0 (Web0S; Linux/SmartTV)');
+      try {
+        player.handleAction('right');
+        await vi.advanceTimersByTimeAsync(CONFIG.PLAYER.SEEK_PREVIEW_FRAME_DELAY_MS);
+        expect(created).toEqual([]);
+        expect(previewShown()).toBe(true);
+        expect(label()).toBe('0:30');
+      } finally {
+        agent.mockRestore();
+      }
+    });
+
+    it('shows only the time when frames are turned off', async () => {
+      CONFIG.PLAYER.SEEK_PREVIEW_FRAMES = false;
+      try {
+        player.handleAction('right');
+        await vi.advanceTimersByTimeAsync(CONFIG.PLAYER.SEEK_PREVIEW_FRAME_DELAY_MS);
+        expect(created).toEqual([]);
+      } finally {
+        CONFIG.PLAYER.SEEK_PREVIEW_FRAMES = true;
+      }
+    });
+
+    it('makes real frame sources by default', () => {
+      const fresh = new Player(container, () => {});
+      const source = fresh.createFrameSource('http://host/movie.mp4');
+      expect(source.available).toBe(true);
+      source.release();
+    });
+
+    it('OK with no seek in progress still pauses and resumes', () => {
+      player.handleAction('select');
+      expect(video.paused).toBe(true);
+      player.handleAction('select');
+      expect(video.paused).toBe(false);
+    });
+
+    it('moves a target and shows its time instead of seeking at once', () => {
+      player.handleAction('right');
+      expect(video.currentTime).toBe(0);
+      expect(previewShown()).toBe(true);
+      expect(label()).toBe('0:30');
+      player.handleAction('right');
+      expect(label()).toBe('1:00');
+      player.handleAction('left');
+      expect(label()).toBe('0:30');
+    });
+
+    it('seeks to the target once the keys rest, and hides the preview', () => {
+      player.handleAction('right');
+      player.handleAction('right');
+      vi.advanceTimersByTime(CONFIG.PLAYER.SEEK_PREVIEW_COMMIT_MS);
+      expect(video.currentTime).toBe(60);
+      expect(previewShown()).toBe(false);
+    });
+
+    it('keeps seeking when a key arrives while the resync message replaces the bar', () => {
+      player.handleAction('select');
+      player.resyncAV();
+      expect(container.querySelector('.osd-time-current')).toBeNull();
+      expect(() => player.handleAction('right')).not.toThrow();
+      expect(previewShown()).toBe(true);
+      expect(label()).toBe('0:30');
+      vi.advanceTimersByTime(CONFIG.PLAYER.SEEK_PREVIEW_COMMIT_MS);
+      expect(video.currentTime).toBe(30);
+      expect(previewShown()).toBe(false);
+    });
+
+    it('seeks at once on OK', () => {
+      player.handleAction('right');
+      player.handleAction('select');
+      expect(video.currentTime).toBe(30);
+      expect(previewShown()).toBe(false);
+      expect(video.paused).toBe(false);
+    });
+
+    it('drops the seek on Back and stays in the movie', () => {
+      const onBack = vi.fn();
+      player.stop();
+      player.playVod(req({ onBack }));
+      player.handleAction('right');
+      player.handleAction('back');
+      expect(previewShown()).toBe(false);
+      expect(video.currentTime).toBe(0);
+      expect(player.isVod()).toBe(true);
+      expect(onBack).not.toHaveBeenCalled();
+      player.handleAction('back');
+      expect(onBack).toHaveBeenCalledTimes(1);
+    });
+
+    it('asks for the frame once the keys slow, from the movie\'s own URL, and shows it', async () => {
+      player.handleAction('right');
+      expect(frames.frameAt).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(CONFIG.PLAYER.SEEK_PREVIEW_FRAME_DELAY_MS);
+      expect(created).toEqual(['http://host/movie.mp4']);
+      expect(frames.frameAt).toHaveBeenCalledWith(30);
+      expect(popup()?.classList.contains('has-frame')).toBe(true);
+    });
+
+    it('does not ask for frames while a key is held, only for where it stops', async () => {
+      for (let i = 0; i < 4; i++) {
+        player.handleAction('right');
+        await vi.advanceTimersByTimeAsync(CONFIG.PLAYER.SEEK_PREVIEW_FRAME_DELAY_MS - 10);
+      }
+      expect(frames.frameAt).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(10);
+      expect(frames.frameAt).toHaveBeenCalledTimes(1);
+    });
+
+    it('ignores a frame that arrives after the target moved on or the seek was made', async () => {
+      let finish = (_: HTMLCanvasElement | null): void => {};
+      frames.frameAt.mockImplementationOnce(() => new Promise<HTMLCanvasElement | null>(resolve => { finish = resolve; }));
+      player.handleAction('right');
+      await vi.advanceTimersByTimeAsync(CONFIG.PLAYER.SEEK_PREVIEW_FRAME_DELAY_MS);
+      player.handleAction('right');
+      finish(document.createElement('canvas'));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(popup()?.classList.contains('has-frame')).toBe(false);
+    });
+
+    it('shows only the time when the source cannot give frames', async () => {
+      frames.available = false;
+      player.handleAction('right');
+      await vi.advanceTimersByTimeAsync(CONFIG.PLAYER.SEEK_PREVIEW_FRAME_DELAY_MS);
+      expect(frames.frameAt).not.toHaveBeenCalled();
+      expect(previewShown()).toBe(true);
+      expect(popup()?.classList.contains('has-frame')).toBe(false);
+    });
+
+    it('shows only the time when a frame cannot be made', async () => {
+      frames.frameAt.mockResolvedValueOnce(null);
+      player.handleAction('right');
+      await vi.advanceTimersByTimeAsync(CONFIG.PLAYER.SEEK_PREVIEW_FRAME_DELAY_MS);
+      expect(previewShown()).toBe(true);
+      expect(popup()?.classList.contains('has-frame')).toBe(false);
+    });
+
+    it('keeps the last frame when the next one cannot be made', async () => {
+      player.handleAction('right');
+      await vi.advanceTimersByTimeAsync(CONFIG.PLAYER.SEEK_PREVIEW_FRAME_DELAY_MS);
+      expect(popup()?.classList.contains('has-frame')).toBe(true);
+      frames.frameAt.mockResolvedValueOnce(null);
+      player.handleAction('right');
+      await vi.advanceTimersByTimeAsync(CONFIG.PLAYER.SEEK_PREVIEW_FRAME_DELAY_MS);
+      expect(frames.frameAt).toHaveBeenCalledTimes(2);
+      expect(popup()?.classList.contains('has-frame')).toBe(true);
+    });
+
+    it('does not open a second element on a library\'s blob URL', async () => {
+      (video as unknown as { src: string }).src = 'blob:http://host/abc';
+      player.handleAction('right');
+      await vi.advanceTimersByTimeAsync(CONFIG.PLAYER.SEEK_PREVIEW_FRAME_DELAY_MS);
+      expect(created).toEqual([]);
+      expect(previewShown()).toBe(true);
+    });
+
+    it('does nothing for a movie with no URL to read frames from', async () => {
+      (video as unknown as { src: string }).src = '';
+      player.handleAction('right');
+      await vi.advanceTimersByTimeAsync(CONFIG.PLAYER.SEEK_PREVIEW_FRAME_DELAY_MS);
+      expect(created).toEqual([]);
+    });
+
+    it('frees the second video a while after the last preview, and not before', async () => {
+      player.handleAction('right');
+      await vi.advanceTimersByTimeAsync(CONFIG.PLAYER.SEEK_PREVIEW_FRAME_DELAY_MS);
+      player.handleAction('select');
+      await vi.advanceTimersByTimeAsync(CONFIG.PLAYER.SEEK_PREVIEW_RELEASE_MS - 1);
+      expect(frames.release).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(frames.release).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the second video while the user keeps scrubbing', async () => {
+      player.handleAction('right');
+      await vi.advanceTimersByTimeAsync(CONFIG.PLAYER.SEEK_PREVIEW_FRAME_DELAY_MS);
+      player.handleAction('select');
+      await vi.advanceTimersByTimeAsync(CONFIG.PLAYER.SEEK_PREVIEW_RELEASE_MS - 100);
+      player.handleAction('right');
+      await vi.advanceTimersByTimeAsync(CONFIG.PLAYER.SEEK_PREVIEW_FRAME_DELAY_MS);
+      expect(frames.release).not.toHaveBeenCalled();
+      expect(created).toHaveLength(1);
+    });
+
+    it('frees the second video when the movie stops', async () => {
+      player.handleAction('right');
+      await vi.advanceTimersByTimeAsync(CONFIG.PLAYER.SEEK_PREVIEW_FRAME_DELAY_MS);
+      player.stop();
+      expect(frames.release).toHaveBeenCalled();
+      expect(previewShown()).toBe(false);
+    });
+
+    it('a pointer seek replaces the seek in progress', () => {
+      player.handleAction('right');
+      (player as unknown as { seekToFraction(f: number): void }).seekToFraction(0.5);
+      expect(video.currentTime).toBe(3600);
+      expect(previewShown()).toBe(false);
+      vi.advanceTimersByTime(CONFIG.PLAYER.SEEK_PREVIEW_COMMIT_MS);
+      expect(video.currentTime).toBe(3600);
+    });
+
+    it('seeks at once when the length is not known', () => {
+      const unknown = fakeVideo(Number.NaN);
+      player.init(unknown);
+      player.stop();
+      player.playVod(req());
+      player.handleAction('right');
+      expect(previewShown()).toBe(false);
+    });
+
+    it('seeks at once when the preview is turned off', () => {
+      CONFIG.PLAYER.SEEK_PREVIEW = false;
+      try {
+        player.handleAction('right');
+        expect(video.currentTime).toBe(30);
+        expect(previewShown()).toBe(false);
+      } finally {
+        CONFIG.PLAYER.SEEK_PREVIEW = true;
+      }
+    });
+
+    it('a cancelled seek frees the second video later too', async () => {
+      player.handleAction('right');
+      await vi.advanceTimersByTimeAsync(CONFIG.PLAYER.SEEK_PREVIEW_FRAME_DELAY_MS);
+      player.handleAction('back');
+      await vi.advanceTimersByTimeAsync(CONFIG.PLAYER.SEEK_PREVIEW_RELEASE_MS);
+      expect(frames.release).toHaveBeenCalled();
+    });
+  });
+
   it('is seekable while the OSD is up (finite duration)', () => {
     const video = fakeVideo(3600);
     player.init(video);
@@ -1692,6 +1947,310 @@ describe('Player VOD mode', () => {
     await vi.advanceTimersByTimeAsync(10_000);
     expect(probeMedia).toHaveBeenCalledWith(next.url, 'x1|media_probe|episode|e2');
     expect(player.isVod()).toBe(true);
+  });
+
+  describe('next episode card', () => {
+    let video: HTMLVideoElement;
+    let time = 0;
+    const next = {
+      url: 'http://host:8080/series/u/p/e2.mp4', title: 'Series One — S1E2',
+      poster: '', accountId: 'x1', itemId: 'e2', kind: 'episode' as const, subtitles: [],
+    };
+    const card = () => container.querySelector('.osd-next-card');
+    const cardShown = () => !!card() && !card()!.classList.contains('hidden');
+    const at = (seconds: number) => {
+      time = seconds;
+      video.dispatchEvent(new Event('timeupdate'));
+    };
+
+    function open(
+      duration = 1800, queue: unknown[] = [next], kind: 'episode' | 'vod' = 'episode',
+      history: unknown[] = [],
+    ) {
+      HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
+      HTMLMediaElement.prototype.pause = vi.fn();
+      HTMLMediaElement.prototype.load = vi.fn();
+      video = document.createElement('video');
+      time = 0;
+      Object.defineProperty(video, 'duration', { value: duration, configurable: true });
+      Object.defineProperty(video, 'currentTime', { get: () => time, set: (v: number) => { time = v; }, configurable: true });
+      container.appendChild(video);
+      player.init(video);
+      const r = req({ itemId: 'e1', kind, episodeQueue: queue as never, episodeHistory: history as never });
+      player.playVod(r);
+      vi.mocked(probeMedia).mockClear();
+      return r;
+    }
+
+    it('stays away until the last seconds, then names the next episode and the time left', () => {
+      open();
+      at(1000);
+      expect(cardShown()).toBe(false);
+      at(1800 - CONFIG.PLAYER.NEXT_EPISODE_PROMPT_SECS - 1);
+      expect(cardShown()).toBe(false);
+      at(1800 - 20);
+      expect(cardShown()).toBe(true);
+      expect(card()!.querySelector('.osd-next-card-title')?.textContent).toBe('Series One — S1E2');
+      expect(card()!.querySelector('.osd-next-card-time')?.textContent).toContain('20');
+      at(1800 - 19);
+      expect(card()!.querySelector('.osd-next-card-time')?.textContent).toContain('19');
+    });
+
+    it('is not offered when no episode follows, for a short clip, or for a movie', () => {
+      open(1800, []);
+      at(1790);
+      expect(cardShown()).toBe(false);
+      player.stop();
+      open(CONFIG.PLAYER.NEXT_EPISODE_MIN_DURATION_SECS - 1);
+      at(CONFIG.PLAYER.NEXT_EPISODE_MIN_DURATION_SECS - 5);
+      expect(cardShown()).toBe(false);
+      player.stop();
+      open(1800, [next], 'vod');
+      at(1790);
+      expect(cardShown()).toBe(false);
+    });
+
+    it('goes away again when the position moves back out of the last seconds', () => {
+      open();
+      at(1790);
+      expect(cardShown()).toBe(true);
+      at(900);
+      expect(cardShown()).toBe(false);
+    });
+
+    it('starts the next episode at once on OK', async () => {
+      open();
+      at(1790);
+      player.handleAction('select');
+      await vi.advanceTimersByTimeAsync(0);
+      expect(cardShown()).toBe(false);
+      expect(probeMedia).toHaveBeenCalledWith(next.url, 'x1|media_probe|episode|e2');
+      expect(container.querySelector('.osd-next-episode')).toBeNull();
+    });
+
+    it('starts the next episode at once when the episode ends with the card up', async () => {
+      open();
+      at(1795);
+      // The last timeupdate lands on the end of the media, right before `ended`.
+      at(1800);
+      video.dispatchEvent(new Event('ended'));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(probeMedia).toHaveBeenCalledWith(next.url, 'x1|media_probe|episode|e2');
+      expect(container.querySelector('.osd-next-episode')).toBeNull();
+    });
+
+    it('commits a seek in progress on OK instead of playing the next episode', async () => {
+      open();
+      at(1790);
+      player.handleAction('right');
+      player.handleAction('select');
+      await vi.advanceTimersByTimeAsync(0);
+      expect(probeMedia).not.toHaveBeenCalled();
+      expect(time).toBe(1800);
+    });
+
+    it('keeps the countdown when the episode ends without the card', async () => {
+      open();
+      at(900);
+      video.dispatchEvent(new Event('ended'));
+      expect(container.querySelector('.osd-next-episode')).not.toBeNull();
+      expect(probeMedia).not.toHaveBeenCalled();
+    });
+
+    it('lets Back put the card away and keep watching, and does not bring it back', async () => {
+      const r = open();
+      at(1790);
+      player.handleAction('back');
+      expect(cardShown()).toBe(false);
+      expect(player.isVod()).toBe(true);
+      expect(r.onBack).not.toHaveBeenCalled();
+      at(1795);
+      expect(cardShown()).toBe(false);
+      // The episode still ends into the usual countdown.
+      video.dispatchEvent(new Event('ended'));
+      expect(container.querySelector('.osd-next-episode')).not.toBeNull();
+    });
+
+    it('does not start a next item when no countdown is running and none was forced', async () => {
+      open();
+      const internals = player as unknown as { playNextItem(force?: boolean): void };
+      internals.playNextItem();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(probeMedia).not.toHaveBeenCalled();
+      player.stop();
+      internals.playNextItem();
+      expect(probeMedia).not.toHaveBeenCalled();
+    });
+
+    it('goes away when playback stops', () => {
+      open();
+      at(1790);
+      player.stop();
+      expect(cardShown()).toBe(false);
+    });
+
+    describe('next episode button and CH+ key', () => {
+      const button = () => container.querySelector('[data-next-episode]');
+
+      it('puts a button on the OSD of an episode that has another one queued', () => {
+        open();
+        player.showOSD();
+        expect(button()).not.toBeNull();
+      });
+
+      it('has no button for the last episode or for a movie', () => {
+        open(1800, []);
+        player.showOSD();
+        expect(button()).toBeNull();
+        player.stop();
+        open(1800, [next], 'vod');
+        player.showOSD();
+        expect(button()).toBeNull();
+      });
+
+      it('plays the next episode at once on CH+, in the middle of the episode', async () => {
+        open();
+        at(900);
+        player.handleAction('channel_up');
+        await vi.advanceTimersByTimeAsync(0);
+        expect(probeMedia).toHaveBeenCalledWith(next.url, 'x1|media_probe|episode|e2');
+        expect(container.querySelector('.osd-next-episode')).toBeNull();
+      });
+
+      describe('CH- for the episode before', () => {
+        const previous = {
+          url: 'http://host:8080/series/u/p/e0.mp4', title: 'Series One — S1E0',
+          poster: '', accountId: 'x1', itemId: 'e0', kind: 'episode' as const, subtitles: [],
+        };
+        const probed = () => vi.mocked(probeMedia).mock.calls.map(c => c[1]);
+
+        it('plays the previous episode at once, keeping this one in the queue after it', async () => {
+          open(1800, [next], 'episode', [previous]);
+          at(900);
+          player.handleAction('channel_down');
+          await vi.advanceTimersByTimeAsync(0);
+          expect(probed()).toEqual(['x1|media_probe|episode|e0']);
+          expect(container.querySelector('.osd-next-episode')).toBeNull();
+          // CH+ comes back to the episode that was left, and CH- has nothing further back.
+          vi.mocked(probeMedia).mockClear();
+          player.handleAction('channel_down');
+          await vi.advanceTimersByTimeAsync(0);
+          expect(probeMedia).not.toHaveBeenCalled();
+          player.handleAction('channel_up');
+          await vi.advanceTimersByTimeAsync(0);
+          expect(probed()).toEqual(['x1|media_probe|episode|e1']);
+        });
+
+        it('walks back one episode at a time', async () => {
+          const older = { ...previous, itemId: 'e00', url: 'http://host:8080/series/u/p/e00.mp4' };
+          open(1800, [], 'episode', [previous, older]);
+          player.handleAction('channel_down');
+          await vi.advanceTimersByTimeAsync(0);
+          player.handleAction('channel_down');
+          await vi.advanceTimersByTimeAsync(0);
+          expect(probed()).toEqual(['x1|media_probe|episode|e0', 'x1|media_probe|episode|e00']);
+        });
+
+        it('keeps the resume point of the episode it leaves', async () => {
+          open(1800, [next], 'episode', [previous]);
+          at(900);
+          vi.mocked(StorageService.setResume).mockClear();
+          player.handleAction('channel_down');
+          expect(StorageService.setResume).toHaveBeenCalledWith(expect.objectContaining({
+            itemId: 'e1', position: 900, episodeQueue: [next], episodeHistory: [previous],
+          }));
+          expect(StorageService.clearResume).not.toHaveBeenCalledWith('x1', 'episode', 'e1');
+        });
+
+        it('hands the finished episode to the history when the next one starts', async () => {
+          open(1800, [next]);
+          at(1795);
+          at(1800);
+          video.dispatchEvent(new Event('ended'));
+          await vi.advanceTimersByTimeAsync(0);
+          vi.mocked(probeMedia).mockClear();
+          player.handleAction('channel_down');
+          await vi.advanceTimersByTimeAsync(0);
+          expect(probed()).toEqual(['x1|media_probe|episode|e1']);
+        });
+
+        it('does nothing without an earlier episode, for a movie, or during the countdown', async () => {
+          open(1800, [next]);
+          player.handleAction('channel_down');
+          player.stop();
+          open(1800, [next], 'vod', [previous]);
+          player.handleAction('channel_down');
+          player.stop();
+          open(1800, [next], 'episode', [previous]);
+          at(900);
+          video.dispatchEvent(new Event('ended'));
+          player.handleAction('channel_down');
+          await vi.advanceTimersByTimeAsync(0);
+          expect(probeMedia).not.toHaveBeenCalled();
+        });
+      });
+
+      it('ignores CH+ when no episode follows, and for a movie', async () => {
+        open(1800, []);
+        player.handleAction('channel_up');
+        player.stop();
+        open(1800, [next], 'vod');
+        player.handleAction('channel_up');
+        await vi.advanceTimersByTimeAsync(0);
+        expect(probeMedia).not.toHaveBeenCalled();
+        expect(player.isVod()).toBe(true);
+      });
+    });
+
+    it('is offered again for the next episode', async () => {
+      open(1800, [next, { ...next, itemId: 'e3' }]);
+      at(1790);
+      expect(cardShown()).toBe(true);
+      player.handleAction('select');
+      await vi.advanceTimersByTimeAsync(0);
+      expect(cardShown()).toBe(false);
+      // The next episode plays on a fresh element; its own last seconds bring the card back.
+      video = container.querySelector('video')!;
+      Object.defineProperty(video, 'duration', { value: 1800, configurable: true });
+      Object.defineProperty(video, 'currentTime', { get: () => time, set: (v: number) => { time = v; }, configurable: true });
+      at(1790);
+      expect(cardShown()).toBe(true);
+    });
+
+    it('comes back after a seek back out of the last seconds, once it was put away', () => {
+      open();
+      at(1790);
+      player.handleAction('back');
+      at(1795);
+      expect(cardShown()).toBe(false);
+      at(900);
+      at(1790);
+      expect(cardShown()).toBe(true);
+    });
+
+    it('stays away while a seek is in progress and returns once it is made', () => {
+      open();
+      at(1790);
+      expect(cardShown()).toBe(true);
+      player.handleAction('left');
+      expect(cardShown()).toBe(false);
+      at(1790);
+      expect(cardShown()).toBe(false);
+      player.handleAction('select');
+      at(1700);
+      at(1790);
+      expect(cardShown()).toBe(true);
+    });
+
+    it('does not skip the episode on a Magic Remote click', async () => {
+      open();
+      container.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: 10, clientY: 10 }));
+      at(1790);
+      expect(cardShown()).toBe(true);
+      player.handleAction('select');
+      await vi.advanceTimersByTimeAsync(0);
+      expect(probeMedia).not.toHaveBeenCalled();
+    });
   });
 
   it('removes a series from Watchlist only after its final episode', () => {

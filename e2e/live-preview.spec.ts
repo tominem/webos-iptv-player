@@ -108,7 +108,7 @@ async function setup(
       if (event.isTrusted && event.target instanceof HTMLMediaElement) event.stopImmediatePropagation();
     }, true);
   }, { enabled: options.enabled, stub: options.stub !== false });
-  await page.goto('/');
+  await page.goto('/?start=live');
   if (options.playlist) await expect(page.locator(ROW).first()).toBeVisible();
   else await expect(page.locator(ROW)).toHaveCount(2);
 }

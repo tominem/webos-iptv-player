@@ -228,7 +228,7 @@ export async function startDash(page: Page, playlist: string, manifest = DASH_MP
     status: 200, contentType: 'application/dash+xml', body: manifest,
   }));
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
   await page.keyboard.press('Enter');
   await expect(page.locator('#view-player')).toBeVisible();

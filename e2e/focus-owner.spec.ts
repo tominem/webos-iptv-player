@@ -38,7 +38,7 @@ async function setup(page: Page): Promise<void> {
   await routeLiveManifest(page);
   await seedPlaylist(page, PLAYLIST_URL);
   await seedLaterReminder(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 }
 

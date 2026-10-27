@@ -24,7 +24,7 @@ test('a malicious channel name from the playlist is escaped, not executed', asyn
 
   await routePlaylist(page, evilM3u);
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
 
   await expect(page.locator('#view-channels')).toBeVisible();
   await expect(page.locator('.channel-main .channel-item')).toHaveCount(1);
@@ -39,7 +39,7 @@ test('a malicious channel name from the playlist is escaped, not executed', asyn
 test('the sidebar has no inline search magnifier or settings gear (moved to the tab bar)', async ({ page }) => {
   await routePlaylist(page, SEARCH_M3U);
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
   await expect(page.locator('#view-channels .search-icon')).toHaveCount(0);
   await expect(page.locator('#view-channels .channel-search')).toHaveCount(0);
@@ -52,7 +52,7 @@ test('the sidebar has no inline search magnifier or settings gear (moved to the 
 test('selecting a group filters the channel list', async ({ page }) => {
   await routePlaylist(page, SEARCH_M3U);
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
   await expect(page.locator('.channel-main .channel-item')).toHaveCount(4);
 
@@ -65,7 +65,7 @@ test('selecting a group filters the channel list', async ({ page }) => {
 test('M3U-only Search (via the tab bar) filters channels into a vertical list', async ({ page }) => {
   await routePlaylist(page, SEARCH_M3U);
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   await enterTab(page, 'search');
@@ -82,7 +82,7 @@ test('M3U-only Search: a pointer click plays the channel', async ({ page }) => {
   await routePlaylist(page, SEARCH_M3U);
   await routeLiveManifest(page);
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   await enterTab(page, 'search');
@@ -106,7 +106,7 @@ test('M3U-only Search: a pointer click plays the channel', async ({ page }) => {
 test('channel rows fit both text lines in their fixed box', async ({ page }) => {
   await routePlaylist(page, SEARCH_M3U);
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   const fit = await measureRowTextFit(
@@ -127,7 +127,7 @@ test('M3U-only Search fills the view when Channels is the only section', async (
   }
   await routePlaylist(page, many.join('\n'));
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   await enterTab(page, 'search');
@@ -153,7 +153,7 @@ test('the list follows the playing channel however it was tuned', async ({ page 
   await routePlaylist(page, lines.join('\n'));
   await routeLiveManifest(page);
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   // Tune far down the list, so the virtualized window is centered on 123...
@@ -210,7 +210,7 @@ test('player sidebar reaches sources, groups, and channels by the shortest D-pad
       { id: 'p2', name: 'Source 2', url: 'http://host/b.m3u', source: 'url' },
     ]));
   });
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('.channel-main .channel-item')).toHaveCount(2);
 
   await page.keyboard.press('ArrowLeft');
@@ -294,7 +294,7 @@ test('direct channel entry scrolls the list to the tuned channel and keeps it on
   await routePlaylist(page, lines.join('\n'));
   await routeLiveManifest(page);
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
   // Channel 215 is far outside the virtualized window rendered at startup.
   await expect(page.locator('.channel-main .channel-item')).not.toHaveCount(300);
@@ -331,7 +331,7 @@ test('returning to a far playing channel keeps it focused under full animation',
   await routePlaylist(page, lines.join('\n'));
   await routeLiveManifest(page);
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('html')).toHaveAttribute('data-animation', 'full');
   await expect(page.locator('#view-channels')).toBeVisible();
 
@@ -365,7 +365,7 @@ test('returning from the sidebar restores the channel you left', async ({ page }
   }
   await routePlaylist(page, lines.join('\n'));
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowRight');
@@ -416,7 +416,7 @@ test('Down after the focused row scrolls out of view stays in the channel list',
   page.on('console', (msg) => events.push(msg.text()));
   await routePlaylist(page, longPlaylist(300));
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await focusFirstChannelRow(page);
 
   // Scroll without the pointer following the rows (cursor hidden, or the wheel
@@ -443,7 +443,7 @@ test('a stationary pointer over the channel list does not trap D-pad Down', asyn
   page.on('console', (msg) => events.push(msg.text()));
   await routePlaylist(page, longPlaylist(300));
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   const main = page.locator('#view-channels .channel-main');
   const start = main.locator('[data-list-position="5"]');
   await expect(start).toBeVisible();
@@ -473,7 +473,7 @@ test('rapid D-pad under full animation moves one row per key press', async ({ pa
   await page.addInitScript(() => localStorage.setItem('iptv_animation_mode', JSON.stringify('full')));
   await routePlaylist(page, longPlaylist(900));
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('html')).toHaveAttribute('data-animation', 'full');
   await focusFirstChannelRow(page);
   const main = page.locator('#view-channels .channel-main');
@@ -497,7 +497,7 @@ test('rapid D-pad under full animation moves one row per key press', async ({ pa
 test('Up at the top of the sidebar goes to the tab bar, not the scrolled list', async ({ page }) => {
   await routePlaylist(page, longPlaylist(300));
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await focusFirstChannelRow(page);
   for (let i = 0; i < 40; i++) await page.keyboard.press('ArrowDown');
   await expect(page.locator('#view-channels .channel-main [data-list-position="40"]'))
@@ -554,7 +554,7 @@ test('Down after the focused group scrolls out of view stays in the group list',
   }
   await routePlaylist(page, lines.join('\n'));
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await focusFirstChannelRow(page);
   const groups = page.locator('#view-channels .group-list');
   for (let i = 0; i < 4 && (await groups.locator('.focused').count()) === 0; i++) {
@@ -583,7 +583,7 @@ test('Down after the focused group scrolls out of view stays in the group list',
 test('OK in edit mode after the focused row scrolls away does not grab the hidden row', async ({ page }) => {
   await routePlaylist(page, longPlaylist(300));
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await focusFirstChannelRow(page);
   await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keydown', { keyCode: 405, bubbles: true })));
   await expect(page.locator('.edit-hints')).toBeVisible();
@@ -615,7 +615,7 @@ test('OK in edit mode with a grabbed row scrolled away brings the grabbed row ba
   page.on('console', (msg) => events.push(msg.text()));
   await routePlaylist(page, longPlaylist(300));
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await focusFirstChannelRow(page);
   await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keydown', { keyCode: 405, bubbles: true })));
   await expect(page.locator('.edit-hints')).toBeVisible();
@@ -654,7 +654,7 @@ test('a focused row scrolled just out of view, still rendered, is not acted on',
   page.on('console', (msg) => events.push(msg.text()));
   await routePlaylist(page, longPlaylist(300));
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await focusFirstChannelRow(page);
   await enterEditMode(page);
   const main = page.locator('#view-channels .channel-main');
@@ -698,7 +698,7 @@ test('OK in edit mode with a grabbed group scrolled away brings the group back',
   }
   await routePlaylist(page, lines.join('\n'));
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await focusFirstChannelRow(page);
   await enterEditMode(page);
   const groups = page.locator('#view-channels .group-list');
@@ -742,7 +742,7 @@ test('OK in edit mode with a grabbed group scrolled away brings the group back',
 test('focus resumed in edit mode is not hidden under the hints bar', async ({ page }) => {
   await routePlaylist(page, longPlaylist(300));
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await focusFirstChannelRow(page);
   await enterEditMode(page);
   const main = page.locator('#view-channels .channel-main');
@@ -764,7 +764,7 @@ test('focus resumed in edit mode is not hidden under the hints bar', async ({ pa
 test('Up on a focused first row just out of view resumes instead of leaving the list', async ({ page }) => {
   await routePlaylist(page, longPlaylist(300));
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await focusFirstChannelRow(page);
   const main = page.locator('#view-channels .channel-main');
   const row0 = main.locator('[data-list-position="0"]');
@@ -786,7 +786,7 @@ test('Up on a focused first row just out of view resumes instead of leaving the 
 test('Green on a focused row just out of view resumes instead of toggling its favorite', async ({ page }) => {
   await routePlaylist(page, longPlaylist(300));
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await focusFirstChannelRow(page);
   const main = page.locator('#view-channels .channel-main');
   const favorites = page.locator('#view-channels [data-group="builtin:favorites"]');
@@ -805,7 +805,7 @@ test('Green on a focused row just out of view resumes instead of toggling its fa
 test('OK commits a rename even after the renamed row scrolls out of view', async ({ page }) => {
   await routePlaylist(page, longPlaylist(300));
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await focusFirstChannelRow(page);
   await enterEditMode(page);
   const main = page.locator('#view-channels .channel-main');
@@ -831,7 +831,7 @@ test('OK on a rename whose row left the rendered list brings it back with the ty
   page.on('console', (msg) => events.push(msg.text()));
   await routePlaylist(page, longPlaylist(300));
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await focusFirstChannelRow(page);
   await enterEditMode(page);
   const main = page.locator('#view-channels .channel-main');
@@ -857,7 +857,7 @@ test('OK on a rename whose row left the rendered list brings it back with the ty
 test('Blue on a grabbed row scrolled out of view opens the rename on that row', async ({ page }) => {
   await routePlaylist(page, longPlaylist(300));
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await focusFirstChannelRow(page);
   await enterEditMode(page);
   const main = page.locator('#view-channels .channel-main');
@@ -885,7 +885,7 @@ async function hoverThenLeave(el: import('@playwright/test').Locator): Promise<v
 test('after the pointer leaves, the first Down shows the row and the next one moves', async ({ page }) => {
   await routePlaylist(page, longPlaylist(30));
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   const main = page.locator('#view-channels .channel-main');
   const row = main.locator('[data-list-position="5"]');
   await expect(row).toBeVisible();
@@ -919,7 +919,7 @@ test('Down after the wheel scrolls a pointer-left row away resumes in view', asy
     channelKey: stableChannelKey(`http://host/${String(i + 1)}.m3u8`),
     updatedAt: now - i * 1000,
   })));
-  await page.goto('/');
+  await page.goto('/?start=live');
   await page.locator('[data-group="builtin:recently-watched"]').click();
   const main = page.locator('#view-channels .channel-main');
   await expect(main.locator('.recent-item')).toHaveCount(30);
@@ -949,7 +949,7 @@ test('Down after the wheel scrolls a pointer-left row away resumes in view', asy
 test('a wheel step below a short list moves the pointer-left row at once', async ({ page }) => {
   await routePlaylist(page, longPlaylist(3));
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   const main = page.locator('#view-channels .channel-main');
   const row = main.locator('[data-list-position="0"]');
   await expect(row).toBeVisible();
@@ -969,7 +969,7 @@ test('a wheel step below a short list moves the pointer-left row at once', async
 test('Down from the tab bar resumes in view after the list scrolled meanwhile', async ({ page }) => {
   await routePlaylist(page, longPlaylist(60));
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   const main = page.locator('#view-channels .channel-main');
   await expect(main.locator('[data-list-position="0"]')).toHaveClass(/\bfocused\b/);
   const list = await main.boundingBox();
@@ -997,7 +997,7 @@ test('the Live tab clicked from another section shows the far channel that is pl
   await routePlaylist(page, lines.join('\n'));
   await routeLiveManifest(page);
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
   await page.keyboard.press('1');
   await page.keyboard.press('5');
@@ -1025,7 +1025,7 @@ test('the Live tab clicked from another section shows the far channel that is pl
 test('Back from the Guide resumes the row you left, brought into view', async ({ page }) => {
   await routePlaylist(page, longPlaylist(300));
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await focusFirstChannelRow(page);
   for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowDown');
   const main = page.locator('#view-channels .channel-main');
@@ -1066,7 +1066,7 @@ test('Back from the Guide resumes a group scrolled out of view, brought into vie
   }
   await routePlaylist(page, lines.join('\n'));
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await focusFirstChannelRow(page);
   const groups = page.locator('#view-channels .group-list');
   for (let i = 0; i < 4 && (await groups.locator('.focused').count()) === 0; i++) {
@@ -1102,7 +1102,7 @@ test('Down from the tab bar resumes the row you left after a preview was stopped
   await routeLiveManifest(page);
   await seedPlaylist(page);
   await page.addInitScript(() => localStorage.setItem('iptv_live_preview', 'true'));
-  await page.goto('/');
+  await page.goto('/?start=live');
   await focusFirstChannelRow(page);
   const main = page.locator('#view-channels .channel-main');
   const preview = page.locator('#view-channels #live-preview');
@@ -1136,7 +1136,7 @@ test('Back from the Guide lands on a channel tuned elsewhere, not the row you le
   await routePlaylist(page, longPlaylist(300));
   await routeLiveManifest(page);
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await focusFirstChannelRow(page);
   for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowDown');
   const main = page.locator('#view-channels .channel-main');
@@ -1175,7 +1175,7 @@ async function hoverCenter(page: Page, selector: string): Promise<void> {
 
 test('a control hovered while the account menu held the keys lights once it hands them back', async ({ page }) => {
   await seedXtream(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels .group-item').first()).toBeVisible();
 
   await page.locator('.account-avatar').click();

@@ -72,6 +72,16 @@ body.tabbar-docked #view-epg .epg-view {
   outline: none;
 }
 
+.tab-bar-label {
+  flex-shrink: 0;
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--text-primary);
+  padding: 4px 2px;
+  border-bottom: 3px solid var(--accent);
+}
+
 .tab-bar-item.active {
   color: var(--text-primary);
   border-bottom-color: var(--accent);

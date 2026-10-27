@@ -375,7 +375,7 @@ test('configures Widevine and forwards license headers to Shaka', async ({ page 
     body: DASH_MPD,
   }));
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   await page.keyboard.press('Enter');

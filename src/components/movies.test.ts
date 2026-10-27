@@ -452,6 +452,33 @@ describe('Movies browse + grid', () => {
     });
   });
 
+  it('frees its lists and markup on release, and browses again on the next open', async () => {
+    const { view } = await openWith([{ id: '1', name: 'Cat A' }], [vod('10', 'Movie One')]);
+    expect(container.querySelector('.catalog-tile[data-item-id="10"]')).not.toBeNull();
+    view.release();
+    expect(container.querySelector('.catalog-tile')).toBeNull();
+    const internals = view as unknown as {
+      categories: unknown[]; railGroups: unknown[]; itemsByCategory: object; account: unknown; resume: unknown[];
+    };
+    expect(internals.categories).toEqual([]);
+    expect(internals.railGroups).toEqual([]);
+    expect(internals.itemsByCategory).toEqual({});
+    expect(internals.resume).toEqual([]);
+    expect(internals.account).toBeNull();
+    await view.open(account);
+    expect(container.querySelector('.catalog-tile[data-item-id="10"]')).not.toBeNull();
+  });
+
+  it('shows the provider score on a rated poster and nothing on an unrated one', async () => {
+    await openWith([{ id: '1', name: 'Cat A' }], [
+      { ...vod('10', 'Rated Movie'), rating: '7.5' },
+      { ...vod('11', 'Unrated Movie'), rating: '0' },
+    ]);
+    const badge = (id: string) => container.querySelector(`.catalog-tile[data-item-id="${id}"] .catalog-rating`);
+    expect(badge('10')?.textContent).toBe('7.5');
+    expect(badge('11')).toBeNull();
+  });
+
   it('renders a rail per preloaded category with poster tiles', async () => {
     await openWith([{ id: '1', name: 'Cat A' }], [vod('10', 'Movie One')]);
     expect(container.querySelector('.catalog-rail-title')?.textContent).toContain('Cat A');

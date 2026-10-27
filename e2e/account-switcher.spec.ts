@@ -62,7 +62,7 @@ async function pickAccount(page: Page, id: string): Promise<void> {
 test('the account avatar shows the active account initial, to the right of Search', async ({ page }) => {
   await seedTwoAccounts(page);
   await routeLiveManifest(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   // Default active account is the first (Alpha) -> initial "A".
@@ -88,7 +88,7 @@ test('no account avatar for an M3U-only setup', async ({ page }) => {
       { name: 'Test', url: 'http://host.example.com/playlist.m3u' },
     ]));
   });
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
   await expect(page.locator('.tab-bar')).toBeVisible();
   await expect(page.locator('.account-avatar')).toHaveCount(0);
@@ -97,7 +97,7 @@ test('no account avatar for an M3U-only setup', async ({ page }) => {
 test('the dropdown lists every account with the active one marked', async ({ page }) => {
   await seedTwoAccounts(page);
   await routeLiveManifest(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   await openAccountMenu(page);
@@ -109,7 +109,7 @@ test('the dropdown lists every account with the active one marked', async ({ pag
 test('an open account menu holds the only ring, which returns to the avatar on close', async ({ page }) => {
   await seedTwoAccounts(page);
   await routeLiveManifest(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   await openAccountMenu(page);
@@ -128,7 +128,7 @@ test('an open account menu holds the only ring, which returns to the avatar on c
 test('a menu opened with the remote holds the only ring, which returns to the avatar on Back', async ({ page }) => {
   await seedTwoAccounts(page);
   await routeLiveManifest(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   const avatar = page.locator('.account-avatar');
@@ -153,7 +153,7 @@ test('a menu opened with the remote holds the only ring, which returns to the av
 test('switching account in the dropdown reloads Movies and updates the avatar', async ({ page }) => {
   await seedTwoAccounts(page);
   await routeLiveManifest(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   // Enter Movies for the default (Alpha) account.
@@ -176,7 +176,7 @@ test('switching account in the dropdown reloads Movies and updates the avatar', 
 test('the selected account persists across a reload', async ({ page }) => {
   await seedTwoAccounts(page);
   await routeLiveManifest(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   // Switch to Bravo, then reload the app.
@@ -195,7 +195,7 @@ test('the selected account persists across a reload', async ({ page }) => {
 test('switching on Live only persists, then applies when Movies is next opened', async ({ page }) => {
   await seedTwoAccounts(page);
   await routeLiveManifest(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   // Switch to Bravo while on the Live view (no Movies loaded yet).
@@ -220,7 +220,7 @@ test('an account menu opened while the search box slides out keeps recent search
   await page.addInitScript(() => {
     localStorage.setItem('iptv_search_history', JSON.stringify(['movie']));
   });
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
   await enterTab(page, 'search');
   await openAccountMenu(page);
@@ -238,7 +238,7 @@ test('closing an account menu over the search box hands the remote back to it', 
   await page.addInitScript(() => {
     localStorage.setItem('iptv_search_history', JSON.stringify(['movie']));
   });
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
   await enterTab(page, 'search');
   await expect(page.locator('.search-history-panel')).toBeVisible();
@@ -260,7 +260,7 @@ test('a click past an account menu over recent searches leaves search, not into 
   await page.addInitScript(() => {
     localStorage.setItem('iptv_search_history', JSON.stringify(['movie']));
   });
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
   await enterTab(page, 'search');
   await expect(page.locator('.search-history-panel')).toBeVisible();
@@ -282,8 +282,8 @@ test('switching account while recent searches are open moves Search to the new a
   await page.addInitScript(() => {
     localStorage.setItem('iptv_search_history', JSON.stringify(['movie']));
   });
-  await page.goto('/');
-  await expect(page.locator('#view-channels')).toBeVisible();
+  await page.goto('/?start=movies');
+  await expect(page.locator('#view-movies')).toBeVisible();
   await enterTab(page, 'search');
   await expect(page.locator('.search-history-panel')).toBeVisible();
 
@@ -303,7 +303,7 @@ test('switching account while recent searches are open moves Search to the new a
 test('a channel-list click that dismisses a pointer-opened menu hands the remote to the list', async ({ page }) => {
   await seedTwoAccounts(page);
   await routeLiveManifest(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   await openAccountMenu(page);
@@ -321,7 +321,7 @@ test('a channel-list click that dismisses a pointer-opened menu hands the remote
 test('the pointer moves the account menu ring, and Back from a remote-opened menu returns to the avatar', async ({ page }) => {
   await seedTwoAccounts(page);
   await routeLiveManifest(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   await openAccountMenu(page);

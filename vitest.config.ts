@@ -23,6 +23,21 @@ export default defineConfig({
     // Keep coverage output under the shared test-output/ folder.
     coverage: {
       reportsDirectory: 'test-output/coverage',
+      // The section-based navigation code is held to full coverage.
+      include: [
+        'src/services/section-data.ts',
+        'src/components/home.ts',
+        'src/utils/heap.ts',
+        'src/utils/catalog-categories.ts',
+        'src/utils/poster-grid.ts',
+        'src/utils/rating.ts',
+        'src/utils/seek-scrubber.ts',
+        'src/services/frame-source.ts',
+        'src/components/seek-preview.ts',
+        'src/components/next-episode-card.ts',
+        'src/components/rating-badge.ts',
+      ],
+      thresholds: { lines: 100, branches: 100, functions: 100, statements: 100 },
     },
   },
 });

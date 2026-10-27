@@ -30,6 +30,8 @@ import { CONFIG } from '../config';
 import { createLogger } from '../utils/logger';
 import { t } from '../i18n';
 import { VirtualList } from '../utils/virtual-list';
+import { ratingBadge } from './rating-badge';
+import { columnOf, itemRangeForRows, rowCount, rowOf, stepInGrid } from '../utils/poster-grid';
 import { VirtualScrollGuard, type VirtualScrollAxis } from '../utils/virtual-scroll';
 import { runInFrameSlices } from '../utils/frame-slices';
 import {
@@ -63,8 +65,16 @@ import {
 const log = createLogger('Search');
 const SEARCH_LIST_VIEWPORT = 420;
 const SEARCH_RAIL_VIEWPORT = 1760;
+// Movie and series results fill the screen as a grid, scrolled vertically: as
+// many posters a row as the width holds, spread across it.
+// A poster tile (330) with its margin and name line, plus the gap to the next row.
+const SEARCH_GRID_ROW_HEIGHT = 395;
+const SEARCH_GRID_VIEWPORT = 790;
+// A poster is 220 wide and wants 20 beside it.
+const SEARCH_GRID_CELL_WIDTH = 240;
 const SEARCH_ROW_OVERSCAN = 6;
 const SEARCH_RAIL_OVERSCAN = 4;
+const SEARCH_GRID_OVERSCAN = 1;
 
 export interface SearchHandlers {
   onRevealTabBar: () => void;
@@ -102,6 +112,9 @@ interface CatalogSources {
 }
 
 // Sources still on their way to the worker in this session.
+// What a Search session indexes: one content section, or everything.
+export type SearchScope = 'all' | 'live' | 'movies' | 'series';
+
 interface PendingIndex {
   channels: boolean;
   programmes: boolean;
@@ -147,6 +160,7 @@ export class Search {
   private nav: SpatialNav;
   readonly focusScope: FocusScope;
   private account: PlaylistEntry | null = null;
+  private scope: SearchScope = 'all';
   private query = '';
   private allVod: VodItem[] = [];
   private allSeries: SeriesItem[] = [];
@@ -174,12 +188,14 @@ export class Search {
   private readonly channelListVirtualizer = this.createVirtualizer(88, SEARCH_ROW_OVERSCAN, SEARCH_LIST_VIEWPORT);
   private readonly programVirtualizer = this.createVirtualizer(109, SEARCH_ROW_OVERSCAN, SEARCH_LIST_VIEWPORT);
   private readonly channelRailVirtualizer = this.createVirtualizer(240, SEARCH_RAIL_OVERSCAN, SEARCH_RAIL_VIEWPORT);
-  private readonly movieVirtualizer = this.createVirtualizer(240, SEARCH_RAIL_OVERSCAN, SEARCH_RAIL_VIEWPORT);
-  private readonly seriesVirtualizer = this.createVirtualizer(240, SEARCH_RAIL_OVERSCAN, SEARCH_RAIL_VIEWPORT);
+  private readonly movieVirtualizer = this.createVirtualizer(SEARCH_GRID_ROW_HEIGHT, SEARCH_GRID_OVERSCAN, SEARCH_GRID_VIEWPORT);
+  private readonly seriesVirtualizer = this.createVirtualizer(SEARCH_GRID_ROW_HEIGHT, SEARCH_GRID_OVERSCAN, SEARCH_GRID_VIEWPORT);
   private scrollFrame: number | null = null;
   // The window each virtual rail last rendered; its cells sit at fixed
   // offsets, so a scroll inside the window needs no render.
   private readonly railWindows = new Map<string, string>();
+  // Posters a grid row holds at the width last rendered.
+  private gridColumns = 7;
   private queryFrame: number | null = null;
   private queryGeneration = 0;
   private queryPending = false;
@@ -246,6 +262,10 @@ export class Search {
     this.container.setAttribute('data-self-activate', '');
     this.container.addEventListener('click', (e: MouseEvent) => this.onPointerRelease(e.clientX, e.clientY));
     this.container.addEventListener('scroll', (e: Event) => this.onVirtualScroll(e), true);
+    // A grid's columns follow the width, so a resized window lays the posters out again.
+    window.addEventListener('resize', () => {
+      if (this.active && this.query.trim()) this.render();
+    });
     onCatalogListRefreshed((key, changed) => this.onCatalogRefreshed(key, changed));
   }
 
@@ -270,8 +290,21 @@ export class Search {
       .find((item) => item.dataset.key === key) ?? null;
   }
 
-  async open(account: PlaylistEntry | null, query = ''): Promise<void> {
+  async open(requested: PlaylistEntry | null, query = '', scope: SearchScope = this.scope): Promise<void> {
     this.active = true;
+    if (scope !== this.scope) {
+      this.scope = scope;
+      this.abortCatalogLoad();
+      this.allVod = [];
+      this.allSeries = [];
+      this.vodCache = null;
+      this.seriesCache = null;
+      this.loadedFor = null;
+      this.catalogExpiresAt = 0;
+      this.invalidateWorkerIndex();
+    }
+    // Live has no catalog to search.
+    const account = scope === 'live' ? null : requested;
     // Another task may have started a new, empty worker since the index was built.
     const generation = appWorkerGeneration();
     if (generation === null || generation !== this.workerIndexedGeneration) {
@@ -293,7 +326,7 @@ export class Search {
     this.query = query;
     this.resultLimit = CONFIG.SEARCH.INITIAL_RESULTS;
     if (!reuseWorkerIndex) {
-      this.pendingIndex = { channels: true, programmes: true, catalog: !!account };
+      this.pendingIndex = { channels: this.includesLive, programmes: this.includesLive, catalog: !!account };
       this.clearResults();
     }
     this.render();
@@ -340,7 +373,7 @@ export class Search {
       });
     }
     try {
-      await this.indexChannelsAndProgrammes(sessionId, workerReset);
+      if (this.includesLive) await this.indexChannelsAndProgrammes(sessionId, workerReset);
     } catch (error) {
       if (sessionId !== this.workerSession) return;
       // Queries rebuild a lost index themselves; don't leave the hint up.
@@ -410,6 +443,7 @@ export class Search {
   }
 
   async refreshPrograms(): Promise<void> {
+    if (!this.includesLive) return;
     this.programIndexGeneration++;
     this.indexedChannels = null;
     this.indexedProgrammes = null;
@@ -458,6 +492,30 @@ export class Search {
 
   dismissPrompt(): void {
     this.resumePrompt.hide();
+  }
+
+  // Leaving for good: drop every list this view derived so a section that was
+  // released does not stay in memory behind it.
+  release(): void {
+    this.deactivate();
+    this.workerSession++;
+    this.pendingIndex = null;
+    this.abortCatalogLoad();
+    this.programIndex = [];
+    this.indexedChannels = null;
+    this.indexedProgrammes = null;
+    this.programsByChannel = null;
+    this.workerChannels = null;
+    this.allVod = [];
+    this.allSeries = [];
+    this.indexedVod = [];
+    this.indexedSeries = [];
+    this.vodCache = null;
+    this.seriesCache = null;
+    this.loadedFor = null;
+    this.catalogExpiresAt = 0;
+    this.clearResults();
+    this.invalidateWorkerIndex();
   }
 
   deactivate(): void {
@@ -519,10 +577,18 @@ export class Search {
     return promise;
   }
 
+  private get includesLive(): boolean {
+    return this.scope === 'all' || this.scope === 'live';
+  }
+
   private async fetchCatalog(account: PlaylistEntry, signal: AbortSignal): Promise<CatalogSources> {
     const [vod, series] = await Promise.all([
-      captureCatalogLoad(loadAllVodStreams(account, signal, { wholeList: true })),
-      captureCatalogLoad(loadAllSeries(account, signal, { wholeList: true })),
+      this.scope === 'all' || this.scope === 'movies'
+        ? captureCatalogLoad(loadAllVodStreams(account, signal, { wholeList: true }))
+        : Promise.resolve<CatalogLoadResult<VodItem[]>>({ ok: true, data: [] }),
+      this.scope === 'all' || this.scope === 'series'
+        ? captureCatalogLoad(loadAllSeries(account, signal, { wholeList: true }))
+        : Promise.resolve<CatalogLoadResult<SeriesItem[]>>({ ok: true, data: [] }),
     ]);
     if (signal.aborted || this.account?.id !== account.id
       || this.catalogController?.signal !== signal) return { movies: false, series: false };
@@ -829,6 +895,50 @@ export class Search {
     `;
   }
 
+  // Posters in rows across the screen, scrolled vertically; only the rows in view are rendered.
+  private virtualGrid<T>(
+    title: string,
+    key: string,
+    items: T[],
+    virtualizer: VirtualList,
+    renderItem: (item: T) => ReturnType<typeof html>,
+  ): ReturnType<typeof html> {
+    const viewport = this.container.querySelector<HTMLElement>(
+      `[data-search-virtual="${key}"]`,
+    )?.clientHeight || SEARCH_GRID_VIEWPORT;
+    const scroll = this.container.querySelector<HTMLElement>(`[data-search-virtual="${key}"]`);
+    const width = this.railContentWidth(scroll);
+    const columns = Math.max(1, Math.floor(width / SEARCH_GRID_CELL_WIDTH));
+    const pitch = Math.floor(width / columns);
+    this.gridColumns = columns;
+    const rows = rowCount(items.length, columns);
+    const range = virtualizer.getRange(rows, viewport);
+    const held = itemRangeForRows(range.start, range.end, columns, items.length);
+    this.railWindows.set(key, this.railWindow(rows, range));
+    return html`
+      <div class="catalog-rail search-grid">
+        <h2 class="catalog-rail-title">${title}</h2>
+        <div class="search-grid-scroll" data-search-virtual="${key}" data-search-axis="vertical">
+          <div class="search-virtual-grid-spacer"
+               style="height:${virtualizer.getTotalSize(rows)}px;width:${width}px">
+            ${items.slice(held.start, held.end).map((item, offset) => {
+              const index = held.start + offset;
+              return html`
+                <div class="search-virtual-rail-cell"
+                     data-key="${key}:${index}"
+                     data-search-section="${key}" data-search-index="${index}"
+                     style="left:${columnOf(index, columns) * pitch}px;top:${
+                       virtualizer.getItemOffset(rowOf(index, columns))}px">
+                  ${renderItem(item)}
+                </div>
+              `;
+            })}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   private virtualList<T>(
     title: string,
     key: string,
@@ -896,7 +1006,7 @@ export class Search {
     return html`
       <div class="catalog-tile" data-focusable data-key="v:${v.streamId}" data-stream-id="${v.streamId}">
         <div class="catalog-poster-wrap">${this.posterCell(v.name, v.poster)}${
-          raw(vodLockBadge(v))}</div>
+          raw(vodLockBadge(v))}${ratingBadge(v.rating)}</div>
         <div class="catalog-tile-name">${v.name}</div>
       </div>
     `;
@@ -906,7 +1016,7 @@ export class Search {
     return html`
       <div class="catalog-tile" data-focusable data-key="s:${s.seriesId}" data-series-id="${s.seriesId}">
         <div class="catalog-poster-wrap">${this.posterCell(s.name, s.poster)}${
-          raw(seriesLockBadge(s))}</div>
+          raw(seriesLockBadge(s))}${ratingBadge(s.rating)}</div>
         <div class="catalog-tile-name">${s.name}</div>
       </div>
     `;
@@ -1676,7 +1786,7 @@ export class Search {
                   : ''}
                 ${programSection}
                 ${this.visibleMovies.length
-                  ? this.virtualRail(
+                  ? this.virtualGrid(
                       t('common.movies'),
                       'movies',
                       this.visibleMovies,
@@ -1685,7 +1795,7 @@ export class Search {
                     )
                   : ''}
                 ${this.visibleSeries.length
-                  ? this.virtualRail(
+                  ? this.virtualGrid(
                       t('common.series'),
                       'series',
                       this.visibleSeries,
@@ -1774,13 +1884,16 @@ export class Search {
       const latest = this.scrollGuard.readUserOffset(target, axis);
       if (latest !== null) virtualizer.setScrollOffset(latest);
       const viewport = axis === 'horizontal' ? target.clientWidth : target.clientHeight;
-      const total = virtualizer.getTotalSize(this.resultCount(key));
+      const total = virtualizer.getTotalSize(this.virtualCount(key));
       if (virtualizer.scrollOffset + viewport >= total - this.resultItemSize(key) * 2) {
         this.expandResults();
       }
-      if (axis === 'horizontal' && this.railWindows.get(key) === this.railWindow(
-        this.resultCount(key),
-        virtualizer.getRange(this.resultCount(key), target.clientWidth || SEARCH_RAIL_VIEWPORT),
+      if (this.railWindows.has(key) && this.railWindows.get(key) === this.railWindow(
+        this.virtualCount(key),
+        virtualizer.getRange(
+          this.virtualCount(key),
+          axis === 'horizontal' ? target.clientWidth || SEARCH_RAIL_VIEWPORT : viewport || SEARCH_GRID_VIEWPORT,
+        ),
       )) return;
       this.render();
     });
@@ -1798,7 +1911,9 @@ export class Search {
     const key = cell?.dataset.searchSection;
     const rawIndex = cell?.dataset.searchIndex;
     if (!key || rawIndex === undefined) return false;
-    const horizontal = key === 'channels-rail' || key === 'movies' || key === 'series';
+    const current = parseInt(rawIndex, 10);
+    if (key === 'movies' || key === 'series') return this.moveGridFocus(key, current, action);
+    const horizontal = key === 'channels-rail';
     if ((horizontal && action !== 'left' && action !== 'right')
         || (!horizontal && action !== 'up' && action !== 'down')) return false;
     let items = key === 'channels-list' || key === 'channels-rail'
@@ -1808,7 +1923,6 @@ export class Search {
         : key === 'movies'
           ? this.visibleMovies
           : this.visibleSeries;
-    const current = parseInt(rawIndex, 10);
     let next = current + (action === 'left' || action === 'up' ? -1 : 1);
     if (next >= items.length && this.expandResults()) {
       items = key === 'channels-list' || key === 'channels-rail'
@@ -1838,6 +1952,35 @@ export class Search {
     return true;
   }
 
+  // A poster grid moves along a row and between rows.
+  private moveGridFocus(key: 'movies' | 'series', current: number, action: Action): boolean {
+    if (action !== 'left' && action !== 'right' && action !== 'up' && action !== 'down') return false;
+    const total = (): number => (key === 'movies' ? this.visibleMovies : this.visibleSeries).length;
+    let next = stepInGrid(current, action, this.gridColumns, total());
+    if (next === null && action === 'down' && this.expandResults()) {
+      next = stepInGrid(current, action, this.gridColumns, total());
+    }
+    if (next === null) return false;
+    const scroll = this.container.querySelector<HTMLElement>(`[data-search-virtual="${key}"]`);
+    this.virtualizers()[key].ensureVisible(
+      rowOf(next, this.gridColumns),
+      scroll?.clientHeight || SEARCH_GRID_VIEWPORT,
+    );
+    this.render();
+    this.nav.focus(
+      this.container.querySelector<HTMLElement>(
+        `[data-search-section="${key}"][data-search-index="${next}"] [data-focusable]`,
+      ),
+    );
+    return true;
+  }
+
+  // What a result list's virtualizer counts: rows for a grid, items otherwise.
+  private virtualCount(key: string): number {
+    const count = this.resultCount(key);
+    return key === 'movies' || key === 'series' ? rowCount(count, this.gridColumns) : count;
+  }
+
   // Item offsets start after the rail's padding, so a tile kept in view
   // rests on the left keyline and clears the right edge's ring gutter.
   private railContentWidth(rail: HTMLElement | null): number {
@@ -1856,6 +1999,7 @@ export class Search {
   private resultItemSize(key: string): number {
     if (key === 'channels-list') return 88;
     if (key === 'programmes') return 109;
+    if (key === 'movies' || key === 'series') return SEARCH_GRID_ROW_HEIGHT;
     return 240;
   }
 

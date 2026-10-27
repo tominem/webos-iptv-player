@@ -42,6 +42,7 @@ export class Movies extends CatalogView<VodCategory, VodItem> {
   protected itemId(v: VodItem): string { return v.streamId; }
   protected itemName(v: VodItem): string { return v.name; }
   protected itemPoster(v: VodItem): string { return v.poster; }
+  protected itemRating(v: VodItem): string { return v.rating; }
   protected itemCategoryId(v: VodItem): string { return v.categoryId; }
   protected clearDetail(): void {
     this.detailController?.abort();

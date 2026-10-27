@@ -73,7 +73,7 @@ for (const section of ['movies', 'series'] as const) {
       localStorage.setItem('iptv_resume', JSON.stringify(resume));
       localStorage.setItem('iptv_watchlist', JSON.stringify(watchlist));
     }, section);
-    await page.goto('/');
+    await page.goto('/?start=live');
     await enterTab(page, section);
     const layer = browse(page, section);
     await expect(layer.locator('[data-rail-key="cat:1"] .catalog-tile').first()).toBeAttached();
@@ -105,7 +105,7 @@ test('sorts whole previews, uses explicit radio directions, and restores server 
   page.on('request', request => {
     if (/action=get_(?:vod|series)_info/.test(request.url())) details.push(request.url());
   });
-  await page.goto('/');
+  await page.goto('/?start=live');
   await enterTab(page, 'movies');
   const layer = browse(page);
   await expect(tiles(page).first()).toHaveText('Title 50');
@@ -151,7 +151,7 @@ test('sorts whole previews, uses explicit radio directions, and restores server 
 });
 
 test('traps only the open menu, restores the trigger, and navigates both radios by remote', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/?start=live');
   await enterTab(page, 'movies');
   const layer = browse(page);
   const trigger = layer.locator('.dropdown-trigger');
@@ -197,7 +197,7 @@ test('traps only the open menu, restores the trigger, and navigates both radios 
 });
 
 test('keeps virtual grids and newly loaded categories sorted, independently for each section', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/?start=live');
   await enterTab(page, 'movies');
   const layer = browse(page);
   await layer.locator('.dropdown-trigger').click();
@@ -243,7 +243,7 @@ for (const mode of ['browse', 'grid']) {
       const cdp = await page.context().newCDPSession(page);
       await cdp.send('Emulation.setCPUThrottlingRate', { rate: 6 });
     }
-    await page.goto('/');
+    await page.goto('/?start=live');
     await enterTab(page, 'movies');
     if (mode === 'grid') {
       await browse(page).locator('.catalog-see-all').first().dispatchEvent('nav:hover');
@@ -275,7 +275,7 @@ test('keeps direction labels and selection readable in every theme', async ({ pa
   await page.addInitScript(() => {
     localStorage.setItem('iptv_catalog_sort_vod', JSON.stringify({ by: 'name', direction: 'asc' }));
   });
-  await page.goto('/');
+  await page.goto('/?start=live');
   await enterTab(page, 'movies');
   const row = browse(page).locator('.catalog-sort');
   for (const theme of THEMES) {
@@ -311,7 +311,7 @@ for (const size of ['80', '150']) {
       localStorage.setItem('iptv_text_size', JSON.stringify(textSize));
       localStorage.setItem('iptv_catalog_sort_vod', JSON.stringify({ by: 'name', direction: 'asc' }));
     }, size);
-    await page.goto('/');
+    await page.goto('/?start=live');
     await enterTab(page, 'movies');
     const row = browse(page).locator('.catalog-sort');
     const trigger = row.locator('.dropdown-trigger');
@@ -361,7 +361,7 @@ test('keeps a minimum width when every option is short', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('iptv_text_size', JSON.stringify('80'));
   });
-  await page.goto('/');
+  await page.goto('/?start=live');
   await enterTab(page, 'movies');
   const dd = browse(page).locator('.catalog-sort .dropdown');
   const { width, content } = await dd.evaluate(el => {

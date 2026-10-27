@@ -44,7 +44,7 @@ function names(page: Page): Promise<string[]> {
 async function boot(page: Page): Promise<void> {
   await routePlaylist(page, SEARCH_M3U);
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
   await expect(page.locator('.channel-main .channel-item')).toHaveCount(4);
   // Seed the pointer: before its first move, a mouseover can't be told
@@ -188,7 +188,7 @@ test('a pointer drag lands above the row it reaches after the grabbed row scroll
   }
   await routePlaylist(page, lines.join('\n'));
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   const main = page.locator('#view-channels .channel-main');
   const row = (position: number) => main.locator(`[data-list-position="${String(position)}"]`);
   await expect(row(0)).toBeVisible();
@@ -367,7 +367,7 @@ ${guideChannels}
     }));
   });
   const guideResponse = page.waitForResponse('**/guide.xml');
-  await page.goto('/');
+  await page.goto('/?start=live');
   await guideResponse;
   await expect(page.locator('#view-channels')).toBeVisible();
   await expect(page.locator('.channel-main .channel-item')).toHaveCount(4);

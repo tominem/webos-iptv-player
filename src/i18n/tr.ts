@@ -34,6 +34,8 @@ export const TR_MESSAGES = {
   'nav.switchAccount': 'Hesap değiştir',
   'search.all': 'Kanal, film ve dizi ara…',
   'search.channels': 'Kanal ara…',
+  'search.movies': 'Film ara…',
+  'search.series': 'Dizi ara…',
   'search.sidebarAll': 'Tüm kanallarda ara…',
   'search.sidebarPlaylist': '{name} içinde ara…',
   'search.ariaChannels': 'Kanal ara',
@@ -185,6 +187,7 @@ export const TR_MESSAGES = {
   'player.timeshift': 'ZAMAN KAYDIRMA',
   'player.remaining': '{duration} kaldı',
   'player.upNext': 'Sıradaki',
+  'player.nextEpisode': 'Sonraki bölüm',
   'player.playingIn': {
     other: '{count} saniye içinde başlıyor',
   },

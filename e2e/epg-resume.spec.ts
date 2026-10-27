@@ -59,7 +59,7 @@ async function setup(page: Page, seed?: Seed): Promise<void> {
 }
 
 async function openEpg(page: Page): Promise<void> {
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
   await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keydown', { keyCode: 403, bubbles: true })));
   await expect(page.locator('#view-epg')).toBeVisible();
@@ -185,7 +185,7 @@ test.describe('EPG catch-up resume prompt', () => {
 
 test('a partial program opened from Search shows its resume prompt with the ring inside', async ({ page }) => {
   await setup(page, partial);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
   await enterTab(page, 'search');
   await page.locator('.tab-bar-search-input').fill('earlier');

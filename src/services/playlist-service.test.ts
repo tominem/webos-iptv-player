@@ -142,6 +142,15 @@ describe('PlaylistService.refresh', () => {
     );
   });
 
+  it('reports whether a channel list is in memory', async () => {
+    PlaylistService.reset();
+    expect(PlaylistService.loaded).toBe(false);
+    await PlaylistService.refresh();
+    expect(PlaylistService.loaded).toBe(true);
+    PlaylistService.reset();
+    expect(PlaylistService.loaded).toBe(false);
+  });
+
   it('merges playlists and de-duplicates channels by URL', async () => {
     const channels = await PlaylistService.refresh();
     expect(channels.map(c => c.name)).toEqual(['Alpha', 'Bravo', 'Charlie']);
@@ -1222,6 +1231,7 @@ describe('PlaylistService.load', () => {
         : null);
 
     expect(await PlaylistService.load()).toEqual(cached);
+    expect(PlaylistService.loaded).toBe(true);
     expect(fetchTextMock).not.toHaveBeenCalled();
     expect(PlaylistService.getNextRefreshDelayMs(intervalMs)).toBe(0);
   });

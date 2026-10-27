@@ -134,7 +134,7 @@ async function finishCurrentVideo(page: Page): Promise<void> {
 test('adds and removes Movies and Series through their detail screens', async ({ page }) => {
   await seedWatchlistCatalog(page);
   await routeLiveManifest(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
 
   await enterTab(page, 'movies');
   await focusAndSelect(page, '#view-movies .catalog-tile[data-item-id="10"]');
@@ -165,7 +165,7 @@ test('shows Resume on return, keeps playback actions aligned, and offers progres
   await seedWatchlistCatalog(page, [movieEntry('10', 'Movie One', 1000)]);
   await routeLiveManifest(page);
   await neuterVideo(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
 
   await enterTab(page, 'movies');
   await focusAndSelect(page, '#view-movies [data-watchlist-item="10"]');
@@ -211,7 +211,7 @@ test('keeps pseudo-localized playback actions aligned and wraps progress removal
     }));
   });
   await routeLiveManifest(page);
-  await page.goto('/?pseudo=1');
+  await page.goto('/?pseudo=1&start=live');
 
   await enterTab(page, 'movies');
   await focusAndSelect(page, '#view-movies [data-watchlist-item="10"]');
@@ -243,7 +243,7 @@ test('auto-plays the next Watchlist movie and removes each completed movie', asy
   ]);
   await routeLiveManifest(page);
   await neuterVideo(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
 
   await enterTab(page, 'movies');
   await focusAndSelect(page, '#view-movies [data-watchlist-item="10"]');
@@ -267,7 +267,7 @@ test('auto-plays the next episode and removes a series only after its final epis
   await seedWatchlistCatalog(page, [seriesEntry()]);
   await routeLiveManifest(page);
   await neuterVideo(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
 
   await enterTab(page, 'series');
   await focusAndSelect(page, '#view-series .catalog-tile[data-item-id="1"]');

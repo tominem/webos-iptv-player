@@ -109,6 +109,7 @@ vi.mock('../workers/app-worker-client', async () => {
 
 import { Search } from './search';
 import { CONFIG } from '../config';
+import { rowCount } from '../utils/poster-grid';
 import { Focus } from '../navigation/focus-scope';
 
 const account: PlaylistEntry = {
@@ -230,6 +231,8 @@ function holdWorkerTask(matches: (task: string, payload: SearchIndexRequest) => 
 }
 
 const openViews: Search[] = [];
+const GRID_COLUMNS = 7;
+const GRID_ROW_HEIGHT = 395;
 
 async function openWith(opts: { vod?: unknown[]; series?: unknown[] } = {}) {
   catalogMock.loadAllVodStreams.mockResolvedValue(opts.vod ?? []);
@@ -1142,10 +1145,11 @@ describe('Search', () => {
     const { view } = await openWith({ vod: many });
     await view.setQuery('movie');
     expect(initial).toBe(200);
-    expect(container.querySelectorAll('.catalog-tile[data-stream-id]').length).toBeLessThan(30);
+    expect(container.querySelectorAll('.catalog-tile[data-stream-id]').length).toBeLessThan(50);
+    // The grid is as tall as its rows.
     expect(container.querySelector<HTMLElement>(
-      '[data-search-virtual="movies"] .search-virtual-rail-spacer',
-    )?.style.width).toBe(`${String(initial * 240)}px`);
+      '[data-search-virtual="movies"] .search-virtual-grid-spacer',
+    )?.style.height).toBe(`${String(rowCount(initial, GRID_COLUMNS) * GRID_ROW_HEIGHT)}px`);
   });
 
   it('expands the ranked batch near the virtual rail boundary', async () => {
@@ -1156,14 +1160,13 @@ describe('Search', () => {
     const { view } = await openWith({ vod: many });
     await view.setQuery('movie');
     const rail = container.querySelector<HTMLElement>('[data-search-virtual="movies"]')!;
-    rail.scrollLeft = CONFIG.SEARCH.INITIAL_RESULTS * 240;
+    rail.scrollTop = rowCount(CONFIG.SEARCH.INITIAL_RESULTS, GRID_COLUMNS) * GRID_ROW_HEIGHT;
     rail.dispatchEvent(new Event('scroll', { bubbles: true }));
     await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
     expect(container.querySelector<HTMLElement>(
-      '[data-search-virtual="movies"] .search-virtual-rail-spacer',
-    )?.style.width).toBe(
-      `${String(CONFIG.SEARCH.INITIAL_RESULTS
-        * CONFIG.SEARCH.EXPANSION_FACTOR * 240)}px`,
+      '[data-search-virtual="movies"] .search-virtual-grid-spacer',
+    )?.style.height).toBe(
+      `${String(rowCount(CONFIG.SEARCH.INITIAL_RESULTS * CONFIG.SEARCH.EXPANSION_FACTOR, GRID_COLUMNS) * GRID_ROW_HEIGHT)}px`,
     );
   });
 
@@ -1180,7 +1183,7 @@ describe('Search', () => {
       .mockImplementation(() => new Promise<void>(resolve => { finish = resolve; }));
     const rail = container.querySelector<HTMLElement>('[data-search-virtual="movies"]')!;
     for (let i = 0; i < 4; i++) {
-      rail.scrollLeft = CONFIG.SEARCH.INITIAL_RESULTS * 240 - 300 + i * 10;
+      rail.scrollTop = rowCount(CONFIG.SEARCH.INITIAL_RESULTS, GRID_COLUMNS) * GRID_ROW_HEIGHT - 300 + i * 10;
       rail.dispatchEvent(new Event('scroll', { bubbles: true }));
       await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
     }
@@ -1200,17 +1203,19 @@ describe('Search', () => {
     await view.setQuery('movie');
     const rail = container.querySelector<HTMLElement>('[data-search-virtual="movies"]')!;
     const render = vi.spyOn(view as unknown as { render(): void }, 'render');
-    const scrollTo = async (left: number): Promise<void> => {
-      rail.scrollLeft = left;
+    const scrollTo = async (top: number): Promise<void> => {
+      rail.scrollTop = top;
       rail.dispatchEvent(new Event('scroll', { bubbles: true }));
       await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
     };
     // An edge scroll moves a few pixels a frame; the same cells stay.
-    for (const left of [10, 20, 30]) await scrollTo(left);
+    for (const top of [10, 20, 30]) await scrollTo(top);
     expect(render).not.toHaveBeenCalled();
-    await scrollTo(240 * 20);
+    await scrollTo(GRID_ROW_HEIGHT * 20);
     expect(render).toHaveBeenCalledTimes(1);
-    expect(container.querySelector('[data-search-index="20"]')).not.toBeNull();
+    // Row 20 of the grid holds items 140 to 146.
+    expect(container.querySelector('[data-search-index="140"]')).not.toBeNull();
+    expect(container.querySelector('[data-search-index="146"]')).not.toBeNull();
   });
 
   it('does not open a focused result the rail scrolled out of its window', async () => {
@@ -1224,7 +1229,7 @@ describe('Search', () => {
     expect(first.classList.contains('focused')).toBe(true);
 
     const rail = container.querySelector<HTMLElement>('[data-search-virtual="movies"]')!;
-    rail.scrollLeft = 24_000;
+    rail.scrollTop = 24_000;
     rail.dispatchEvent(new Event('scroll', { bubbles: true }));
     await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
     Focus.flush();
@@ -2543,5 +2548,249 @@ describe('Search (M3U-only, no account)', () => {
     container.dispatchEvent(new MouseEvent('click', { clientX: 100, clientY: 50, bubbles: true }));
     document.elementFromPoint = orig;
     expect(handlers.onPlayChannel).toHaveBeenCalledWith(5);
+  });
+});
+
+describe('Search scope', () => {
+  async function openScoped(scope: 'live' | 'movies' | 'series' | 'all') {
+    catalogMock.loadAllVodStreams.mockResolvedValue([vod('10', 'Alpha Movie')]);
+    catalogMock.loadAllSeries.mockResolvedValue([ser('20', 'Alpha Show')]);
+    playlistMock.channels = [chan('Alpha Channel')];
+    playlistMock.search.mockReturnValue(playlistMock.channels);
+    const view = new Search(container, mkHandlers());
+    openViews.push(view);
+    await view.open(account, '', scope);
+    await indexReady(view);
+    return view;
+  }
+
+  it('searches only movies in the movies scope', async () => {
+    const view = await openScoped('movies');
+    await view.setQuery('alpha');
+    expect(catalogMock.loadAllVodStreams).toHaveBeenCalledTimes(1);
+    expect(catalogMock.loadAllSeries).not.toHaveBeenCalled();
+    expect(container.textContent).toContain('Alpha Movie');
+    expect(container.textContent).not.toContain('Alpha Show');
+    expect(container.textContent).not.toContain('Alpha Channel');
+  });
+
+  it('searches only series in the series scope', async () => {
+    const view = await openScoped('series');
+    await view.setQuery('alpha');
+    expect(catalogMock.loadAllVodStreams).not.toHaveBeenCalled();
+    expect(catalogMock.loadAllSeries).toHaveBeenCalledTimes(1);
+    expect(container.textContent).toContain('Alpha Show');
+    expect(container.textContent).not.toContain('Alpha Movie');
+    expect(container.textContent).not.toContain('Alpha Channel');
+  });
+
+  it('loads no catalog in the live scope', async () => {
+    const view = await openScoped('live');
+    await view.setQuery('alpha');
+    expect(catalogMock.loadAllVodStreams).not.toHaveBeenCalled();
+    expect(catalogMock.loadAllSeries).not.toHaveBeenCalled();
+    expect(container.textContent).toContain('Alpha Channel');
+    expect(container.textContent).not.toContain('Alpha Movie');
+  });
+
+  it('keeps searching everything by default', async () => {
+    const view = await openScoped('all');
+    await view.setQuery('alpha');
+    expect(container.textContent).toContain('Alpha Movie');
+    expect(container.textContent).toContain('Alpha Show');
+    expect(container.textContent).toContain('Alpha Channel');
+  });
+
+  it('drops the other kind when the scope changes', async () => {
+    const view = await openScoped('movies');
+    view.deactivate();
+    await view.open(account, '', 'series');
+    await indexReady(view);
+    await view.setQuery('alpha');
+    expect(catalogMock.loadAllSeries).toHaveBeenCalledTimes(1);
+    expect(container.textContent).toContain('Alpha Show');
+    expect(container.textContent).not.toContain('Alpha Movie');
+  });
+
+  it('does not build the programme index outside the live scope', async () => {
+    const view = await openScoped('movies');
+    const builds = workerMock.run.mock.calls.length;
+    await view.refreshPrograms();
+    expect(workerMock.run.mock.calls.length).toBe(builds);
+  });
+});
+
+describe('Search release', () => {
+  it('drops every list it holds and reopens cleanly', async () => {
+    playlistMock.channels = [chan('Alpha Channel')];
+    playlistMock.search.mockReturnValue(playlistMock.channels);
+    epgMock.programmes = { 'Alpha Channel': [prog('Alpha Show Live', Date.now() - 1000, Date.now() + 60_000)] };
+    const { view } = await openWith({ vod: [vod('10', 'Alpha Movie')], series: [ser('20', 'Alpha Show')] });
+    await view.setQuery('alpha');
+    view.release();
+    const internals = view as unknown as Record<string, unknown>;
+    for (const field of ['programIndex', 'allVod', 'allSeries', 'indexedVod', 'indexedSeries', 'visibleMovies']) {
+      expect(internals[field], field).toEqual([]);
+    }
+    for (const field of ['indexedChannels', 'indexedProgrammes', 'programsByChannel', 'workerChannels']) {
+      expect(internals[field], field).toBeNull();
+    }
+    expect(internals.loadedFor).toBeNull();
+    expect(internals.active).toBe(false);
+    await view.open(account);
+    await indexReady(view);
+    await view.setQuery('alpha');
+    expect(container.textContent).toContain('Alpha Movie');
+  });
+});
+
+describe('Search poster grid', () => {
+  const movies = (count: number) => Array.from({ length: count }, (_, i) => vod(String(i), `Movie ${i}`));
+  const focusedIndex = (view: Search): number | null => {
+    const nav = (view as unknown as { nav: { focused: HTMLElement | null } }).nav;
+    const cell = nav.focused?.closest<HTMLElement>('[data-search-index]');
+    return cell ? parseInt(cell.dataset.searchIndex ?? '', 10) : null;
+  };
+
+  async function openGrid(count: number): Promise<Search> {
+    catalogMock.loadAllVodStreams.mockResolvedValue(movies(count));
+    catalogMock.loadAllSeries.mockResolvedValue([]);
+    const view = new Search(container, mkHandlers());
+    openViews.push(view);
+    await view.open(account, '', 'movies');
+    await indexReady(view);
+    await view.setQuery('movie');
+    view.focusFirstResult();
+    return view;
+  }
+
+  const cell = (index: number) =>
+    container.querySelector<HTMLElement>(`[data-search-index="${String(index)}"]`)!;
+
+  it('fills each row across the screen before starting the next', async () => {
+    await openGrid(10);
+    expect(cell(0).style.top).toBe('0px');
+    expect(cell(6).style.top).toBe('0px');
+    expect(cell(7).style.top).toBe('395px');
+    expect(cell(7).style.left).toBe(cell(0).style.left);
+    // Seven columns spread over the 1760px of content width.
+    expect(cell(6).style.left).toBe('1506px');
+    expect(container.querySelector<HTMLElement>('[data-search-virtual="movies"] .search-virtual-grid-spacer')
+      ?.style.height).toBe('790px');
+  });
+
+  it('takes as many columns as the width holds, and lays out again when it changes', async () => {
+    const view = await openGrid(20);
+    expect(cell(7).style.top).toBe('395px');
+    const scroll = container.querySelector<HTMLElement>('[data-search-virtual="movies"]')!;
+    Object.defineProperty(scroll, 'clientWidth', { configurable: true, value: 1000 });
+    window.dispatchEvent(new Event('resize'));
+    // 1000px holds four 240px posters: the second row starts at the fifth.
+    expect(cell(3).style.top).toBe('0px');
+    expect(cell(4).style.top).toBe('395px');
+    expect(cell(3).style.left).toBe('750px');
+    view.handleAction('down');
+    expect(focusedIndex(view)).toBe(4);
+  });
+
+  it('does not lay out when the window resizes with nothing searched', async () => {
+    await openGrid(20);
+    const view = openViews[openViews.length - 1];
+    await view.setQuery('');
+    const render = vi.spyOn(view as unknown as { render(): void }, 'render');
+    window.dispatchEvent(new Event('resize'));
+    expect(render).not.toHaveBeenCalled();
+  });
+
+  it('shows the provider score on rated results', async () => {
+    catalogMock.loadAllVodStreams.mockResolvedValue([{ ...vod('1', 'Movie Rated'), rating: '6.5' }, vod('2', 'Movie Plain')]);
+    catalogMock.loadAllSeries.mockResolvedValue([]);
+    const view = new Search(container, mkHandlers());
+    openViews.push(view);
+    await view.open(account, '', 'movies');
+    await indexReady(view);
+    await view.setQuery('movie');
+    expect(container.querySelector('[data-stream-id="1"] .catalog-rating')?.textContent).toBe('6.5');
+    expect(container.querySelector('[data-stream-id="2"] .catalog-rating')).toBeNull();
+  });
+
+  it('shows the provider score on a rated series result', async () => {
+    catalogMock.loadAllVodStreams.mockResolvedValue([]);
+    catalogMock.loadAllSeries.mockResolvedValue([{ ...ser('1', 'Show Rated'), rating: '9.0' }]);
+    const view = new Search(container, mkHandlers());
+    openViews.push(view);
+    await view.open(account, '', 'series');
+    await indexReady(view);
+    await view.setQuery('show');
+    expect(container.querySelector('[data-series-id="1"] .catalog-rating')?.textContent).toBe('9.0');
+  });
+
+  it('puts a short result list in one full-width row', async () => {
+    await openGrid(5);
+    expect(container.querySelectorAll('[data-search-index]')).toHaveLength(5);
+    for (let i = 0; i < 5; i++) expect(cell(i).style.top).toBe('0px');
+  });
+
+  it('moves along a row and between rows, and stops at the edges', async () => {
+    const view = await openGrid(20);
+    expect(focusedIndex(view)).toBe(0);
+    view.handleAction('right');
+    expect(focusedIndex(view)).toBe(1);
+    view.handleAction('down');
+    expect(focusedIndex(view)).toBe(8);
+    view.handleAction('left');
+    expect(focusedIndex(view)).toBe(7);
+    view.handleAction('left');
+    expect(focusedIndex(view)).toBe(7);
+    view.handleAction('up');
+    expect(focusedIndex(view)).toBe(0);
+  });
+
+  it('scrolls the grid down to keep the focused row in view', async () => {
+    const view = await openGrid(60);
+    for (let i = 0; i < 5; i++) view.handleAction('down');
+    expect(focusedIndex(view)).toBe(35);
+    const internals = view as unknown as { movieVirtualizer: { scrollOffset: number } };
+    expect(internals.movieVirtualizer.scrollOffset).toBeGreaterThan(0);
+    expect(cell(35)).not.toBeUndefined();
+  });
+
+  it('leaves the grid upward from the top row for the bar to take', async () => {
+    const view = await openGrid(10);
+    const reveal = vi.spyOn(view as unknown as { moveVirtualFocus(a: string): boolean }, 'moveVirtualFocus');
+    view.handleAction('up');
+    expect(reveal).toHaveReturnedWith(false);
+  });
+
+  it('asks for more results when Down runs out of rows', async () => {
+    const view = await openGrid(2_000);
+    const internals = view as unknown as { expandResults(): boolean; visibleMovies: unknown[] };
+    const expand = vi.spyOn(internals, 'expandResults');
+    for (let i = 0; i < internals.visibleMovies.length / 7 + 1; i++) view.handleAction('down');
+    expect(expand).toHaveBeenCalled();
+  });
+
+  it('moves through a series grid the same way', async () => {
+    catalogMock.loadAllVodStreams.mockResolvedValue([]);
+    catalogMock.loadAllSeries.mockResolvedValue(
+      Array.from({ length: 10 }, (_, i) => ser(String(i), `Show ${i}`)));
+    const view = new Search(container, mkHandlers());
+    openViews.push(view);
+    await view.open(account, '', 'series');
+    await indexReady(view);
+    await view.setQuery('show');
+    view.focusFirstResult();
+    view.handleAction('right');
+    expect(focusedIndex(view)).toBe(1);
+    view.handleAction('down');
+    expect(focusedIndex(view)).toBe(8);
+  });
+
+  it('ignores a key that is not a direction', async () => {
+    const view = await openGrid(10);
+    const move = vi.spyOn(view as unknown as { moveVirtualFocus(a: string): boolean }, 'moveVirtualFocus');
+    view.handleAction('red');
+    expect(focusedIndex(view)).toBe(0);
+    expect(move).not.toHaveReturnedWith(true);
   });
 });

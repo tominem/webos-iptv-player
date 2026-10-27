@@ -181,6 +181,29 @@ function clickData(attr: string, value: number): void {
     .dispatchEvent(new MouseEvent('click', { bubbles: true }));
 }
 
+describe('EpgGrid.release', () => {
+  it('lets go of the channel and programme lists and empties its markup', () => {
+    grid.render();
+    expect(container.querySelector('.epg-channel-item')).not.toBeNull();
+    grid.release();
+    const internals = grid as unknown as Record<string, unknown>;
+    for (const field of ['groupOptionsChannels', 'visibleChannelRoot', 'programmeSource',
+      'channelSearchResults', 'channelSearchResultSource']) {
+      expect(internals[field], field).toBeNull();
+    }
+    expect(internals.visibleChannels).toEqual([]);
+    expect(internals.groupOptions).toEqual([]);
+    expect(container.children).toHaveLength(0);
+  });
+
+  it('draws again from scratch after a release', () => {
+    grid.render();
+    grid.release();
+    grid.render();
+    expect(container.querySelector('.epg-channel-item')).not.toBeNull();
+  });
+});
+
 describe('EpgGrid.render', () => {
   beforeEach(() => grid.render());
 

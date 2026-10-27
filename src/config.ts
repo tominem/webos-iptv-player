@@ -47,6 +47,19 @@ export const CONFIG = {
     LIVE_PREVIEW_UPCOMING_COUNT: 4,
     LIVE_PREVIEW_REFRESH_MS: 1000,
     DEFAULT_PLAYER_OSD_TIMEOUT_MS: 5000,
+    // Left/Right on a movie or episode move a target and show a frame there; the
+    // seek happens once the keys rest. A second, silent video supplies the frames.
+    SEEK_PREVIEW: true,
+    // Frames from a second video; skipped on webOS (see Player.framesWanted).
+    SEEK_PREVIEW_FRAMES: true,
+    SEEK_PREVIEW_COMMIT_MS: 900,
+    SEEK_PREVIEW_FRAME_DELAY_MS: 150,
+    SEEK_PREVIEW_FRAME_TIMEOUT_MS: 6000,
+    // The second video is dropped this long after the last preview, freeing its
+    // decoder and its connection to the provider.
+    SEEK_PREVIEW_RELEASE_MS: 4000,
+    SEEK_PREVIEW_WIDTH: 320,
+    SEEK_PREVIEW_HEIGHT: 180,
     // After a live stream fails: how long the diagnosis may take, how long its
     // message stays up before the next channel opens, and how much of the
     // stream it reads to name the codecs.
@@ -96,6 +109,10 @@ export const CONFIG = {
     SUBTITLE_OFFSET_STEP: 0.25, // seconds per Left/Right press in the subtitle-sync adjuster
     SUBTITLE_OFFSET_MAX: 60,    // max |offset| the adjuster allows (seconds)
     SUBTITLE_SEARCH_TIMEOUT: 8000, // ms one online provider may take before the merged search gives up on it
+    // Over the last seconds of an episode with another queued, a card offers the next
+    // one; an episode shorter than the minimum never shows it.
+    NEXT_EPISODE_PROMPT_SECS: 25,
+    NEXT_EPISODE_MIN_DURATION_SECS: 300,
     UP_NEXT_COUNTDOWN: 10,      // seconds before the queued episode/movie starts automatically
   },
 
@@ -146,6 +163,20 @@ export const CONFIG = {
     MAX_VISIBLE_ITEMS: 50,
   },
 
+  // Home screen and the one-section-at-a-time memory budget.
+  HOME: {
+    RAIL_MAX: 12,
+  },
+
+  SECTIONS: {
+    // JS heap above which leaving Live also drops its channel list.
+    HEAP_CAP_BYTES: 80 * 1024 * 1024,
+    // How long a dropped guide gets to be collected before the heap is judged.
+    HEAP_RECHECK_MS: 1500,
+    // A second Back this soon after the first leaves the section for home.
+    DOUBLE_BACK_MS: 2000,
+  },
+
   SEARCH: {
     // Budget for the worker's IndexedDB reads before the page posts the index instead.
     CACHE_READ_TIMEOUT_MS: 1200,
@@ -156,8 +187,6 @@ export const CONFIG = {
     INDEX_WRITE_TIMEOUT_MS: 5000,
     // Documents the worker folds before yielding to queued queries.
     FOLD_SLICE_SIZE: 1000,
-    // Wait this long after start before loading the Movies and Series lists for Search.
-    CATALOG_PREFETCH_DELAY_MS: 20 * 1000,
     // After a search index attempt or a rebuild of a lost index fails, its
     // queries search on the main thread for this long before the worker is
     // tried again.

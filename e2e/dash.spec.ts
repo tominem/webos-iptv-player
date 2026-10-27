@@ -13,7 +13,7 @@ test('routes an MPD through Shaka and renders its stream info', async ({ page })
     body: DASH_MPD,
   }));
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   await page.keyboard.press('Enter');
@@ -60,7 +60,7 @@ test('loads the real Shaka engine in the desktop preview', async ({ page }) => {
     });
   });
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
   const beforeShaka = await page.evaluate(() => ({
     promiseFinally: typeof Promise.prototype.finally,

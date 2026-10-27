@@ -6,7 +6,7 @@ import type { CatalogSortPreference } from '../utils/catalog-sort';
 const { catalogMock, storageMock, watchlistState, toastMock } = vi.hoisted(() => {
   const watchlistState = { entries: [] as WatchlistEntry[] };
   return {
-    catalogMock: { loadSeriesCategories: vi.fn(), loadSeries: vi.fn(), loadSeriesInfo: vi.fn() },
+    catalogMock: { loadSeriesCategories: vi.fn(), loadSeries: vi.fn(), loadSeriesInfo: vi.fn(), loadVodCategories: vi.fn(async () => []) },
     watchlistState,
     storageMock: {
       getCatalogSort: vi.fn((): CatalogSortPreference => ({ by: 'default', direction: 'asc' })),
@@ -605,6 +605,7 @@ describe('Series detail', () => {
           watchlistOwner: { kind: 'series', itemId: 's1' },
         }),
       ],
+      episodeHistory: [],
     }));
   });
 
@@ -637,6 +638,9 @@ describe('Series detail', () => {
     view.handleAction('select');
     expect(handlers.onPlayVod).toHaveBeenCalledWith(expect.objectContaining({
       itemId: 'e2', kind: 'episode', url: 'http://host:8080/series/u/p/e2.mkv',
+      episodeQueue: [],
+      // The earlier episodes, nearest first, for CH- in the player.
+      episodeHistory: [expect.objectContaining({ itemId: 'e1', title: expect.stringContaining('S1E1') })],
     }));
   });
 
@@ -654,7 +658,11 @@ describe('Series detail', () => {
     expect(handlers.onPlayVod).toHaveBeenCalledWith(expect.objectContaining({ itemId: 'e1', resumeSecs: 450 }));
   });
 
-  it('restores the remaining episode queue from Continue Watching', async () => {
+  it('restores the remaining episode queue and history from Continue Watching', async () => {
+    const previous = {
+      url: 'http://host:8080/series/u/p/e0.mp4', title: 'Series One — S1E0',
+      poster: '', accountId: 'x1', itemId: 'e0', kind: 'episode', subtitles: [],
+    };
     const next = {
       url: 'http://host:8080/series/u/p/e2.mkv', title: 'Series One — S2E1 — Episode Two',
       poster: '', accountId: 'x1', itemId: 'e2', kind: 'episode', subtitles: [],
@@ -664,6 +672,7 @@ describe('Series detail', () => {
         accountId: 'x1', kind: 'episode', itemId: 'e1', name: 'Series One — S1E1',
         poster: '', ext: 'mp4', position: 450, duration: 1500, updatedAt: 1,
         episodeQueue: [next],
+        episodeHistory: [previous],
         watchlistOwner: { kind: 'series', itemId: 's1' },
       },
     ]);
@@ -673,6 +682,7 @@ describe('Series detail', () => {
     view.handleAction('select');
     expect(handlers.onPlayVod).toHaveBeenCalledWith(expect.objectContaining({
       episodeQueue: [next],
+      episodeHistory: [previous],
       watchlistOwner: { kind: 'series', itemId: 's1' },
     }));
   });
@@ -713,5 +723,41 @@ describe('Series deep-link (openItem)', () => {
     logs.mockRestore();
     expect(onDetailBack).toHaveBeenCalledTimes(1);
     expect(handlers.onBack).not.toHaveBeenCalled();
+  });
+});
+
+describe('Series ratings', () => {
+  it('shows the provider score on a rated poster and nothing on an unrated one', async () => {
+    await openWith([{ id: '1', name: 'Cat A' }], [
+      { ...series('s1', 'Rated Show'), rating: '8.1' },
+      series('s2', 'Unrated Show'),
+    ]);
+    const badge = (id: string) => container.querySelector(`.catalog-tile[data-item-id="${id}"] .catalog-rating`);
+    expect(badge('s1')?.textContent).toBe('8.1');
+    expect(badge('s2')).toBeNull();
+  });
+});
+
+describe('Series categories', () => {
+  it('leaves out a movie category the provider repeats among the series', async () => {
+    catalogMock.loadVodCategories.mockResolvedValue([{ id: '385', name: 'Movies | Top 10' }]);
+    await openWith([
+      { id: '385', name: 'Movies | Top 10' },
+      { id: '386', name: 'Series | Top 10' },
+    ]);
+    const titles = Array.from(container.querySelectorAll('.catalog-rail-title')).map(el => el.textContent);
+    expect(titles.join(' ')).toContain('Series | Top 10');
+    expect(titles.join(' ')).not.toContain('Movies | Top 10');
+  });
+
+  it('still shows every series category when the movie list cannot be loaded', async () => {
+    catalogMock.loadVodCategories.mockRejectedValue(new Error('offline'));
+    await openWith([
+      { id: '385', name: 'Movies | Top 10' },
+      { id: '386', name: 'Series | Top 10' },
+    ]);
+    const titles = Array.from(container.querySelectorAll('.catalog-rail-title')).map(el => el.textContent);
+    expect(titles.join(' ')).toContain('Movies | Top 10');
+    catalogMock.loadVodCategories.mockResolvedValue([]);
   });
 });

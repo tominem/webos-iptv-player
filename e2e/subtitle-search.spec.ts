@@ -86,7 +86,7 @@ async function routeAssrtSearch(page: Page, forQuery: (q: string) => unknown[]):
 
 // Browse Movies, open the one movie's detail, and start VOD playback.
 async function startVodPlayback(page: Page): Promise<void> {
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
   await enterTab(page, 'movies');
   await page.locator(`.catalog-tile[data-item-id="${MOVIE_ID}"]`)

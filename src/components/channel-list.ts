@@ -276,6 +276,14 @@ export class ChannelList {
     return { group: this.currentGroup, playlist: this.currentPlaylist || undefined };
   }
 
+  // Leaving Live for good: drop what the list pinned so the channels can be freed.
+  release(): void {
+    this.groupEntries = [];
+    this.groupEntriesChannels = null;
+    this.groupEntriesRevision = -1;
+    morph(this.container, html``);
+  }
+
   render(ensureFocus = true): void {
     const tabs = PlaylistService.playlistTabs;
     // The selected playlist may have just been deleted in settings — fall back to All.

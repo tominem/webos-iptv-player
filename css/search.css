@@ -90,6 +90,20 @@
   height: 371px;
 }
 .search-channel-rail .search-virtual-rail-spacer { height: 165px; }
+/* Movie and series results: posters in rows across the screen, scrolled
+   vertically. The padding leaves room for the focus ring and its glow. */
+.search-grid-scroll {
+  position: relative;
+  box-sizing: border-box;
+  height: 790px;
+  margin: 0 -12px;
+  padding: 12px;
+  overflow-y: auto;
+  overflow-anchor: none;
+}
+.search-virtual-grid-spacer {
+  position: relative;
+}
 .search-virtual-rail-cell {
   position: absolute;
   top: 0;

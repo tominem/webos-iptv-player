@@ -33,6 +33,8 @@ export const RU_MESSAGES = {
   'nav.switchAccount': 'Сменить аккаунт',
   'search.all': 'Поиск каналов, фильмов и сериалов…',
   'search.channels': 'Поиск каналов…',
+  'search.movies': 'Поиск фильмов…',
+  'search.series': 'Поиск сериалов…',
   'search.sidebarAll': 'Поиск по всем каналам…',
   'search.sidebarPlaylist': 'Поиск в {name}…',
   'search.ariaChannels': 'Поиск каналов',
@@ -200,6 +202,7 @@ export const RU_MESSAGES = {
   'player.timeshift': 'ТАЙМШИФТ',
   'player.remaining': 'Осталось {duration}',
   'player.upNext': 'Далее',
+  'player.nextEpisode': 'Следующая серия',
   'player.playingIn': {
     one: 'Начало через {count} секунду',
     few: 'Начало через {count} секунды',

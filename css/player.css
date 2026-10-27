@@ -59,6 +59,8 @@
 /* Player overlays use a fixed dark palette for video readability; accents still
    follow the theme. The light variant is opt-in via "Player overlay". */
 .player-osd,
+.osd-seek-preview,
+.osd-next-card,
 .player-sidebar,
 .player-menu,
 .subs-overlay,
@@ -80,6 +82,7 @@
 /* Frosted — opaque light glass. Cohesive with light themes; over dark video it
    reads as a bright card. */
 [data-overlay="frosted"] .player-osd,
+[data-overlay="frosted"] .osd-next-card,
 [data-overlay="frosted"] .player-sidebar,
 [data-overlay="frosted"] .player-menu,
 [data-overlay="frosted"] .subs-overlay,
@@ -310,6 +313,25 @@
   background: none;
   color: var(--text-primary);
   cursor: pointer;
+}
+
+.osd-next-episode-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.osd-next-episode-btn svg {
+  width: 28px;
+  height: 28px;
+  display: block;
 }
 
 .osd-resync-btn svg {
@@ -1165,4 +1187,75 @@
   background: var(--accent-dim);
   border-color: var(--accent);
   color: #fff;
+}
+
+/* The frame and time over the seek bar while the keys move along a movie. */
+.osd-seek-preview {
+  position: fixed;
+  z-index: 40;
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-left: -160px;
+  pointer-events: none;
+}
+.osd-seek-preview canvas {
+  display: block;
+  width: 320px;
+  height: 180px;
+  box-sizing: border-box;
+  border: 2px solid var(--overlay-divider);
+  border-radius: var(--radius);
+  background: #000;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.55);
+}
+.osd-seek-preview-time {
+  padding: 4px 14px;
+  border-radius: 999px;
+  background: var(--bg-secondary);
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+/* The bar follows the keys, not the slow playback tick. */
+.player-osd.scrubbing .osd-progress-bar { transition: none; }
+
+/* Over the last seconds of an episode: what plays next, and the key that starts it. */
+.osd-next-card {
+  position: fixed;
+  z-index: 40;
+  right: 80px;
+  bottom: 180px;
+  width: 460px;
+  box-sizing: border-box;
+  padding: 20px 24px;
+  border-radius: var(--radius);
+  background: rgba(10, 10, 15, 0.82);
+  border: 1px solid var(--overlay-divider);
+  pointer-events: none;
+}
+[data-overlay="frosted"] .osd-next-card { background: rgba(244, 246, 249, 0.9); }
+.osd-next-card-label {
+  font-size: 20px;
+  color: var(--text-secondary);
+}
+.osd-next-card-title {
+  margin: 6px 0;
+  font-size: 28px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.osd-next-card-time {
+  font-size: 22px;
+  color: var(--text-secondary);
+}
+.osd-next-card-hint {
+  margin-top: 12px;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--accent);
 }

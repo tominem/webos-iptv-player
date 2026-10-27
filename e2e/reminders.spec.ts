@@ -33,7 +33,7 @@ test('a due reminder prompts on open and Watch now opens the player', async ({ p
   await seedPlaylist(page);
   await seedDueReminder(page);
 
-  await page.goto('/');
+  await page.goto('/?start=live');
 
   await expect(page.locator('.reminder-prompt:not(.hidden)')).toBeVisible();
   await expect(page.locator('.reminder-message')).toContainText('Alpha');
@@ -48,7 +48,7 @@ test('Cancel dismisses the prompt and stays on the channel list', async ({ page 
   await seedPlaylist(page);
   await seedDueReminder(page);
 
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('.reminder-prompt:not(.hidden)')).toBeVisible();
   await page.locator('.reminder-btn[data-reminder-action="cancel"]').click();
   await expect(page.locator('.reminder-prompt.hidden')).toHaveCount(1);
@@ -61,7 +61,7 @@ test('Cancel dismisses the prompt and stays on the channel list', async ({ page 
 test('the EPG reminder legend opens management and Back returns to it', async ({ page }) => {
   await routePlaylist(page);
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
 
   await enterTab(page, 'epg');
   const entry = page.locator('.epg-reminder-entry');
@@ -94,7 +94,7 @@ test('long reminder text stays on one line inside the card', async ({ page }) =>
     }]));
   }, channelKey(CHAN_ONE));
 
-  await page.goto('/');
+  await page.goto('/?start=live');
   await page.locator('.tab-bar-item[data-section="settings"]').click();
   await page.locator('#manage-reminders').click();
 
@@ -141,7 +141,7 @@ test('reminder manager icons scale with the text size', async ({ page }) => {
     ]));
   }, channelKey(CHAN_ONE));
 
-  await page.goto('/');
+  await page.goto('/?start=live');
   await page.locator('.tab-bar-item[data-section="settings"]').click();
   await page.locator('#manage-reminders').click();
   await expect(page.locator('.reminder-manager-row')).toBeVisible();
@@ -181,7 +181,7 @@ test('reminder card columns fit their text at text size 150', async ({ page }) =
     ]));
   }, channelKey(CHAN_ONE));
 
-  await page.goto('/');
+  await page.goto('/?start=live');
   await page.locator('.tab-bar-item[data-section="settings"]').click();
   await page.locator('#manage-reminders').click();
   await expect(page.locator('.reminder-manager-row')).toBeVisible();
@@ -203,7 +203,7 @@ test('the empty-state hint wraps to a readable width at text size 150', async ({
   await seedPlaylist(page);
   await page.addInitScript(() => { localStorage.setItem('iptv_locale', JSON.stringify('de')); });
 
-  await page.goto('/');
+  await page.goto('/?start=live');
   await page.locator('.tab-bar-item[data-section="settings"]').click();
   await page.locator('#manage-reminders').click();
   await page.evaluate(() => { document.documentElement.dataset.textSize = '150'; });

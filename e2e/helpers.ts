@@ -97,6 +97,26 @@ export async function seedPlaylist(page: Page, url = PLAYLIST_URL): Promise<void
   }, url);
 }
 
+const RED = 403;
+const BACK = 461;
+
+async function reachSection(page: Page, section: string): Promise<void> {
+  if (section === 'epg') {
+    await page.evaluate((code) => document.dispatchEvent(
+      new KeyboardEvent('keydown', { keyCode: code, bubbles: true })), RED);
+    await expect(page.locator('#view-epg')).toBeVisible();
+    return;
+  }
+  const home = page.locator('#view-home');
+  for (let i = 0; i < 6 && !(await home.isVisible()); i++) {
+    await page.evaluate((code) => document.dispatchEvent(
+      new KeyboardEvent('keydown', { keyCode: code, bubbles: true })), BACK);
+    await page.waitForTimeout(150);
+  }
+  await expect(home).toBeVisible();
+  await page.locator(`.home-tile[data-section="${section}"]`).click();
+}
+
 /** Enter a section via the docked tab bar (always visible for an Xtream account).
  *  Uses a coordinate mouse press so the click carries clientX/clientY for the tab
  *  bar's coordinate hit-test. */
@@ -105,6 +125,14 @@ export async function enterTab(
   section: 'live' | 'epg' | 'movies' | 'series' | 'settings' | 'search',
 ): Promise<void> {
   const tab = page.locator(`.tab-bar-item[data-section="${section}"]`);
+  // Inside a section the bar names only that section: the others are picked from
+  // the home screen, and the Guide opens with the red key.
+  // Already in that section: its label is all the bar shows.
+  if (await page.locator(`.tab-bar-label[data-section="${section}"]`).count()) return;
+  if (section !== 'search' && !(await tab.isVisible())) {
+    await reachSection(page, section);
+    return;
+  }
   await expect(tab).toBeVisible();
   const box = await tab.boundingBox();
   if (!box) throw new Error(`tab ${section} has no bounding box`);

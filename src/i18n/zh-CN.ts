@@ -33,6 +33,8 @@ export const ZH_CN_MESSAGES = {
   'nav.switchAccount': '切换账号',
   'search.all': '搜索频道、电影和剧集…',
   'search.channels': '搜索频道…',
+  'search.movies': '搜索电影…',
+  'search.series': '搜索剧集…',
   'search.sidebarAll': '搜索所有频道…',
   'search.sidebarPlaylist': '搜索{name}…',
   'search.ariaChannels': '搜索频道',
@@ -185,6 +187,7 @@ export const ZH_CN_MESSAGES = {
   'player.timeshift': '时移',
   'player.remaining': '剩余 {duration}',
   'player.upNext': '即将播放',
+  'player.nextEpisode': '下一集',
   'player.playingIn': {
     other: '{count} 秒后开始播放',
   },

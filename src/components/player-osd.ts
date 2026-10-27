@@ -5,7 +5,8 @@ import { type DvrState } from '../utils/dvr';
 import { morph } from '../utils/morph';
 import { formatDuration, formatPosition, formatTime, getProgress } from '../utils/time';
 import { t, tp } from '../i18n';
-import { PAUSE_ICON, PLAY_ICON, RESYNC_ICON } from './icons';
+import { NEXT_EPISODE_ICON, PAUSE_ICON, PLAY_ICON, RESYNC_ICON } from './icons';
+import { SeekPreview } from './seek-preview';
 
 export interface PlayerOsdSnapshot {
   playback: {
@@ -18,6 +19,8 @@ export interface PlayerOsdSnapshot {
   catchup: CatchupInfo | null;
   vodTitle: string | null;
   upNextSeconds: number;
+  // An episode is playing and another one follows it.
+  hasNextEpisode: boolean;
   dvr: DvrState | null;
   nowPlaying: Programme | null;
   upcoming: Programme | null;
@@ -46,6 +49,7 @@ export interface PlayerOsdOptions {
   onPauseToggle: () => void;
   onGoLive: () => void;
   onResync: () => void;
+  onNextEpisode: () => void;
   onPlayNext: () => void;
   onCancelNext: () => void;
 }
@@ -63,8 +67,12 @@ export class PlayerOsd {
   // Programme-icon URLs that failed to load, so a re-render omits them instead of
   // re-requesting a broken image (which would thrash the OSD layout).
   private failedIcons = new Set<string>();
+  private readonly seekPreview: SeekPreview;
+  // Where the bar and clock stand while a seek is in progress, for a render in the middle of it.
+  private scrub: { fraction: number; label: string } | null = null;
 
   constructor(private container: HTMLElement, private callbacks: PlayerOsdOptions) {
+    this.seekPreview = new SeekPreview(container);
     // Activate OSD controls on click by coordinate hit-test (vs e.target) since
     // they sit over the video plane. The persistent container is marked so the
     // global click handler skips this self-activating subtree.
@@ -120,6 +128,7 @@ export class PlayerOsd {
 
   hide(): void {
     this.visible = false;
+    this.seekPreview.hide();
     const osd = $('#player-osd', this.container);
     if (osd) hide(osd);
     if (this.timer) clearTimeout(this.timer);
@@ -264,7 +273,7 @@ export class PlayerOsd {
   }
 
   refreshProgress(): void {
-    if (!this.visible) return;
+    if (!this.visible || this.seekPreview.visible) return;
     const state = this.callbacks.getSnapshot();
     const playback = state.playback;
     if (!playback) return;
@@ -299,6 +308,29 @@ export class PlayerOsd {
     this.setProgress(Math.min(playback.position, playback.duration) / playback.duration);
     const current = $('.osd-time-current', this.container);
     if (current) current.textContent = formatPosition(playback.position);
+  }
+
+  /** The bar, the clock and a preview at `fraction` while the keys move a seek target;
+   *  the playing position does not move them until the preview is hidden. */
+  showSeekPreview(fraction: number, label: string): void {
+    if (!this.visible) this.show(); else this.resetTimer();
+    // A message (such as the resync one) replaced the bar: draw it again first.
+    if (!$('.osd-time-current', this.container)) this.render();
+    this.scrub = { fraction, label };
+    this.setProgress(fraction);
+    $('.osd-time-current', this.container)!.textContent = label;
+    this.seekPreview.show($('[data-seekbar]', this.container) as HTMLElement | null, fraction, label);
+    $('#player-osd', this.container)?.classList.add('scrubbing');
+  }
+
+  setSeekPreviewFrame(canvas: HTMLCanvasElement | null): void {
+    this.seekPreview.setFrame(canvas);
+  }
+
+  hideSeekPreview(): void {
+    this.scrub = null;
+    this.seekPreview.hide();
+    $('#player-osd', this.container)?.classList.remove('scrubbing');
   }
 
   /** Seek to the bar position under (x, y) when it's over the seek bar; returns
@@ -348,9 +380,14 @@ export class PlayerOsd {
           <div class="osd-progress-bar" style="width: ${dur > 0 ? (pos / dur) * 100 : 0}%"></div>
         </div>
         <span class="osd-time-end">${dur > 0 ? formatPosition(dur) : ''}</span>
+        ${state.hasNextEpisode ? this.nextEpisodeButton() : ''}
         ${this.resyncButton()}
       </div>
     `);
+    if (this.scrub && this.seekPreview.visible) {
+      this.setProgress(this.scrub.fraction);
+      $('.osd-time-current', this.container)!.textContent = this.scrub.label;
+    }
   }
 
   /** The programme icon `<img>`, or nothing if it has no URL or that URL already
@@ -378,6 +415,15 @@ export class PlayerOsd {
     return html`
       <button class="osd-resync-btn" data-resync aria-label="${t('player.resync')}">
         ${raw(RESYNC_ICON)}
+      </button>
+    `;
+  }
+
+  /** The OSD "Next episode" button (series). Pointer-hit-tested by onPointerRelease. */
+  private nextEpisodeButton(): Safe {
+    return html`
+      <button class="osd-next-episode-btn" data-next-episode aria-label="${t('player.nextEpisode')}">
+        ${raw(NEXT_EPISODE_ICON)}
       </button>
     `;
   }
@@ -439,6 +485,7 @@ export class PlayerOsd {
     if (this.hitsControl('[data-playpause]', x, y)) this.callbacks.onPauseToggle();
     else if (this.hitsControl('[data-golive]', x, y)) this.callbacks.onGoLive();
     else if (this.hitsControl('[data-resync]', x, y)) this.callbacks.onResync();
+    else if (this.hitsControl('[data-next-episode]', x, y)) this.callbacks.onNextEpisode();
   }
 
   private hitsControl(selector: string, x: number, y: number): boolean {

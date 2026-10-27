@@ -30,7 +30,7 @@ async function textOverflow(page: Page, selector: string): Promise<string[]> {
 test('expands localized channel navigation without clipping', async ({ page }) => {
   await routePlaylist(page, SEARCH_M3U);
   await seedPlaylist(page);
-  await page.goto('/?pseudo=1');
+  await page.goto('/?pseudo=1&start=live');
 
   await expect(page.locator('html')).toHaveAttribute('lang', 'en-XA');
   await expect(page.locator('.tab-bar-item[data-section="live"]')).toContainText('[!!');
@@ -44,7 +44,7 @@ test('expands localized channel navigation without clipping', async ({ page }) =
 test('keeps pseudo-localized Settings controls within their boxes', async ({ page }) => {
   await routePlaylist(page, SEARCH_M3U);
   await seedPlaylist(page);
-  await page.goto('/?pseudo=1');
+  await page.goto('/?pseudo=1&start=live');
   await enterTab(page, 'settings');
   await expect(page.locator('#view-settings')).toBeVisible();
 

@@ -5,9 +5,11 @@ const { state, playlistMock } = vi.hoisted(() => {
   const state = {
     channels: [] as Array<{ url: string; name: string }>,
     concealed: [] as Array<{ url: string; name: string }>,
+    loaded: true,
   };
   return { state, playlistMock: {
     get channels() { return state.channels; },
+    get loaded() { return state.loaded; },
     getUnconcealedChannels: () => [...state.channels, ...state.concealed],
   } };
 });
@@ -35,6 +37,7 @@ beforeEach(() => {
   localStorage.clear();
   state.channels = [chan('http://host/a', 'A'), chan('http://host/b', 'B')] as never[];
   state.concealed = [];
+  state.loaded = true;
 });
 
 const rem = (over = {}) => ({ channelKey: keyA, channelName: 'A', title: 'Alpha', startMs: 1000, stopMs: 2000, ...over });
@@ -100,11 +103,37 @@ describe('ReminderService store', () => {
     expect(ReminderService.dueNow(2000)).toHaveLength(0);  // answered
   });
 
+  it('anyOnAir sees an on-air reminder without judging its channel', () => {
+    ReminderService.add({ channelKey: 'not-in-memory', channelName: 'X', title: 'T', startMs: 1000, stopMs: 3000 });
+    expect(ReminderService.dueNow(2000)).toHaveLength(0);   // the channel list does not have it
+    expect(ReminderService.anyOnAir(500)).toBe(false);      // before start
+    expect(ReminderService.anyOnAir(4000)).toBe(false);     // after stop
+    expect(ReminderService.anyOnAir(2000)).toBe(true);
+    ReminderService.markAnswered('not-in-memory', 1000);
+    expect(ReminderService.anyOnAir(2000)).toBe(false);     // answered
+  });
+
   it('prune drops ended reminders and vanished channels', () => {
     ReminderService.add(rem({ startMs: 1000, stopMs: 2000 }));
     ReminderService.add({ channelKey: 'gone', channelName: 'X', title: 'T', startMs: 1000, stopMs: 9000 });
     ReminderService.prune(5000); // first ended, second channel gone
     expect(ReminderService.list()).toHaveLength(0);
+  });
+
+  it('prune keeps upcoming reminders while no channel list is in memory', () => {
+    ReminderService.add(rem({ startMs: 6000, stopMs: 9000 }));
+    ReminderService.add(rem({ startMs: 1000, stopMs: 2000 }));
+    state.channels = [];
+    state.loaded = false;
+
+    ReminderService.prune(5000);
+
+    // The ended one goes; the other waits for the channels to come back.
+    expect(ReminderService.list().map(r => r.startMs)).toEqual([6000]);
+    expect(ReminderService.listManageable(5000)).toHaveLength(0);
+    state.channels = [chan('http://host/a', 'A')] as never[];
+    state.loaded = true;
+    expect(ReminderService.listManageable(5000)).toHaveLength(1);
   });
 
   it('keeps reminders for channels concealed by parental controls', () => {

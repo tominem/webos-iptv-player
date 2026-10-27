@@ -33,6 +33,8 @@ export const DE_MESSAGES = {
   'nav.switchAccount': 'Konto wechseln',
   'search.all': 'Sender, Filme und Serien durchsuchen…',
   'search.channels': 'Sender durchsuchen…',
+  'search.movies': 'Filme durchsuchen…',
+  'search.series': 'Serien durchsuchen…',
   'search.sidebarAll': 'Alle Sender durchsuchen…',
   'search.sidebarPlaylist': '{name} durchsuchen…',
   'search.ariaChannels': 'Sender durchsuchen',
@@ -190,6 +192,7 @@ export const DE_MESSAGES = {
   'player.timeshift': 'TIMESHIFT',
   'player.remaining': 'Noch {duration}',
   'player.upNext': 'Als Nächstes',
+  'player.nextEpisode': 'Nächste Folge',
   'player.playingIn': {
     one: 'Beginnt in {count} Sekunde',
     other: 'Beginnt in {count} Sekunden',

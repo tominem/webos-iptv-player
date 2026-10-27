@@ -18,7 +18,7 @@ async function seedXtream(page: import('@playwright/test').Page): Promise<void> 
 test('the tab bar is docked (always visible) and offsets the content below it', async ({ page }) => {
   await seedXtream(page);
   await routeLiveManifest(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   // Always visible on the channels view — no pointer reveal needed.
@@ -33,7 +33,7 @@ test('the tab bar is docked (always visible) and offsets the content below it', 
 test('clicking the Movies tab enters the Movies view', async ({ page }) => {
   await seedXtream(page);
   await routeLiveManifest(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   await enterTab(page, 'movies');
@@ -43,7 +43,7 @@ test('clicking the Movies tab enters the Movies view', async ({ page }) => {
 test('the Guide tab opens the EPG below the docked bar, and Back returns to Live', async ({ page }) => {
   await seedXtream(page);
   await routeLiveManifest(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   await enterTab(page, 'epg');
@@ -63,7 +63,7 @@ test('the Guide tab opens the EPG below the docked bar, and Back returns to Live
 test('the Settings tab (after Series) opens the settings view', async ({ page }) => {
   await seedXtream(page);
   await routeLiveManifest(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   await enterTab(page, 'settings');
@@ -73,7 +73,7 @@ test('the Settings tab (after Series) opens the settings view', async ({ page })
 test('the tab bar is hidden during full-screen playback', async ({ page }) => {
   await seedXtream(page);
   await routeLiveManifest(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
   await expect(page.locator('.tab-bar')).toBeVisible();
 
@@ -87,7 +87,7 @@ test('the tab bar is hidden during full-screen playback', async ({ page }) => {
 test('the search box keeps the current view until a query is typed, then covers it', async ({ page }) => {
   await seedXtream(page);
   await routeLiveManifest(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   // Open the search box from the channels view.
@@ -146,7 +146,7 @@ test('opening Search does not cancel the catalog loading underneath it', async (
     }
     await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
   });
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   await enterTab(page, 'movies');
@@ -166,7 +166,7 @@ test('M3U-only shows a docked bar with Live/Guide/Settings/Search only (no Movie
       { name: 'Test', url: 'http://host.example.com/playlist.m3u' },
     ]));
   });
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   // The bar is docked, but with the reduced M3U section set.
@@ -187,7 +187,7 @@ test('M3U-only shows a docked bar with Live/Guide/Settings/Search only (no Movie
 
 test('no playlist or account configured shows Live/Guide/Settings/Search only (no Movies/Series)', async ({ page }) => {
   // Seed nothing — first run opens onboarding Settings with the bar docked.
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-settings')).toBeVisible();
 
   // The docked bar must not offer the Xtream-only Movies/Series sections.
@@ -201,7 +201,7 @@ test('no playlist or account configured shows Live/Guide/Settings/Search only (n
 test('leaving Settings (Cancel) moves the active tab back to Live', async ({ page }) => {
   await seedXtream(page);
   await routeLiveManifest(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   await enterTab(page, 'settings');
@@ -229,7 +229,7 @@ function tokenColor(page: import('@playwright/test').Page, token: string): Promi
 test('the Search magnifier rests bare and draws the focus circle on hover and D-pad focus', async ({ page }) => {
   await seedXtream(page);
   await routeLiveManifest(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   const icon = page.locator('.tab-bar-search .search-icon');
@@ -268,7 +268,7 @@ test('the Search magnifier rests bare and draws the focus circle on hover and D-
 test('a hovered text tab brightens to the active tab color', async ({ page }) => {
   await seedXtream(page);
   await routeLiveManifest(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   const color = (section: string) => page.locator(`.tab-bar-item[data-section="${section}"]`)
@@ -283,7 +283,7 @@ test('a hovered text tab brightens to the active tab color', async ({ page }) =>
 test('the open Search shows the text tabs\' accent underline under the magnifier', async ({ page }) => {
   await seedXtream(page);
   await routeLiveManifest(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   const icon = page.locator('.tab-bar-search .search-icon');
@@ -307,7 +307,7 @@ test('the open Search shows the text tabs\' accent underline under the magnifier
 test('switching to the D-pad drops a resting pointer\'s hover circle on the magnifier', async ({ page }) => {
   await seedXtream(page);
   await routeLiveManifest(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   const icon = page.locator('.tab-bar-search .search-icon');
@@ -358,7 +358,7 @@ test.describe('a pointer click on a section tab', () => {
     page.on('console', (msg) => events.push(msg.text()));
     await seedXtream(page);
     await routeLiveManifest(page);
-    await page.goto('/');
+    await page.goto('/?start=live');
     const rows = page.locator('#view-channels .channel-main [data-channel-index]');
     await expect(rows.nth(1)).toBeVisible();
     await pointAt(page, rows.nth(1));
@@ -393,7 +393,7 @@ test.describe('a pointer click on a section tab', () => {
   test('from the hovered edit button, shows no ring in Live until a key', async ({ page }) => {
     await seedXtream(page);
     await routeLiveManifest(page);
-    await page.goto('/');
+    await page.goto('/?start=live');
     const rows = page.locator('#view-channels .channel-main [data-channel-index]');
     const edit = page.locator('#view-channels .channel-edit-btn');
     await expect(rows.first()).toBeVisible();
@@ -410,7 +410,7 @@ test.describe('a pointer click on a section tab', () => {
   test('shows no ring in the Guide until a key', async ({ page }) => {
     await seedXtream(page);
     await routeLiveManifest(page);
-    await page.goto('/');
+    await page.goto('/?start=live');
     await expect(page.locator('#view-channels .channel-item').first()).toBeVisible();
 
     await enterTab(page, 'epg');
@@ -425,7 +425,7 @@ test.describe('a pointer click on a section tab', () => {
   test('shows no ring in Settings until a key', async ({ page }) => {
     await seedXtream(page);
     await routeLiveManifest(page);
-    await page.goto('/');
+    await page.goto('/?start=live');
     await expect(page.locator('#view-channels .channel-item').first()).toBeVisible();
 
     await enterTab(page, 'settings');
@@ -441,7 +441,7 @@ test.describe('a pointer click on a section tab', () => {
   test('takes Green as the first key to show the row, not to favorite it', async ({ page }) => {
     await seedXtream(page);
     await routeLiveManifest(page);
-    await page.goto('/');
+    await page.goto('/?start=live');
     const rows = page.locator('#view-channels .channel-main [data-channel-index]');
     await expect(rows.first()).toBeVisible();
 
@@ -459,7 +459,7 @@ test.describe('a pointer click on a section tab', () => {
 test('a clicked tab draws no native focus ring', async ({ page }) => {
   await seedXtream(page);
   await routeLiveManifest(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   // After a key press the engine draws a ring for any focused button.
@@ -477,7 +477,7 @@ test.describe('hovering content after D-pad Up onto the tab bar', () => {
     page.on('console', (msg) => events.push(msg.text()));
     await seedXtream(page);
     await routeLiveManifest(page);
-    await page.goto('/');
+    await page.goto('/?start=live');
     const rows = page.locator('#view-channels .channel-main [data-channel-index]');
     await expect(rows.first()).toHaveClass(/\bfocused\b/);
 
@@ -504,7 +504,7 @@ test.describe('hovering content after D-pad Up onto the tab bar', () => {
   test('hands the keys back to Settings', async ({ page }) => {
     await seedXtream(page);
     await routeLiveManifest(page);
-    await page.goto('/');
+    await page.goto('/?start=live');
     await expect(page.locator('#view-channels .channel-item').first()).toBeVisible();
 
     // Up onto Live, then Right along the bar to Settings.
@@ -531,7 +531,7 @@ test.describe('D-pad Up in Settings', () => {
   async function openSettings(page: import('@playwright/test').Page) {
     await seedXtream(page);
     await routeLiveManifest(page);
-    await page.goto('/');
+    await page.goto('/?start=live');
     await expect(page.locator('#view-channels .channel-item').first()).toBeVisible();
     await enterTab(page, 'settings');
     const first = page.locator('#view-settings .settings-nav-item').first();
@@ -585,7 +585,7 @@ test.describe('the Guide channel column under the pointer', () => {
   test('a click after a Guide tab click shows the ring, and keys go on from it', async ({ page }) => {
     await seedXtream(page);
     await routeLiveManifest(page);
-    await page.goto('/');
+    await page.goto('/?start=live');
     await expect(page.locator('#view-channels .channel-item').first()).toBeVisible();
 
     await enterTab(page, 'epg');
@@ -604,7 +604,7 @@ test.describe('the Guide channel column under the pointer', () => {
   test('hovering it takes the keys from the tab bar', async ({ page }) => {
     await seedXtream(page);
     await routeLiveManifest(page);
-    await page.goto('/');
+    await page.goto('/?start=live');
     await expect(page.locator('#view-channels .channel-item').first()).toHaveClass(/\bfocused\b/);
 
     await page.keyboard.press('ArrowUp');
@@ -632,7 +632,7 @@ test.describe('the Guide channel column under the pointer', () => {
 test('Up to the tab bar and back keeps unsaved Settings and their position', async ({ page }) => {
   await seedXtream(page);
   await routeLiveManifest(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels .channel-item').first()).toBeVisible();
   await enterTab(page, 'settings');
 
@@ -665,7 +665,7 @@ test('Up to the tab bar and back keeps unsaved Settings and their position', asy
 test('a channel number that lands while the bar owns the keys still clears its readout', async ({ page }) => {
   await seedXtream(page);
   await routeLiveManifest(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels .channel-main [data-channel-index]').first()).toBeVisible();
   const committed = page.waitForEvent('console', (m) => m.text().includes('event=key.number '));
   await page.keyboard.press('2');
@@ -681,7 +681,7 @@ test.describe('switching sections from the bar with the D-pad', () => {
   test('Down onto Live rings its entry point, not the bar, and never two rings', async ({ page }) => {
     await seedXtream(page);
     await routeLiveManifest(page);
-    await page.goto('/');
+    await page.goto('/?start=live');
     const rows = page.locator('#view-channels .channel-main [data-channel-index]');
     await expect(rows.first()).toBeVisible();
     await page.keyboard.press('ArrowDown');
@@ -709,7 +709,7 @@ test.describe('switching sections from the bar with the D-pad', () => {
   test('a tab click between keys leaves the content dark until the next key', async ({ page }) => {
     await seedXtream(page);
     await routeLiveManifest(page);
-    await page.goto('/');
+    await page.goto('/?start=live');
     const rows = page.locator('#view-channels .channel-main [data-channel-index]');
     await expect(rows.first()).toBeVisible();
     await page.keyboard.press('ArrowUp');
@@ -728,13 +728,9 @@ test.describe('switching sections from the bar with the D-pad', () => {
   test('Up from a Search result reaches the box, and Down from the box returns to the results', async ({ page }) => {
     await seedXtream(page);
     await routeLiveManifest(page);
-    await page.goto('/');
+    await page.goto('/?start=live');
     await expect(page.locator('#view-channels .channel-item').first()).toBeVisible();
-    await page.keyboard.press('ArrowUp');
-    for (let i = 0; i < 6 && !(await page.locator('.tab-bar-item[data-section="search"].focused').count()); i++) {
-      await page.keyboard.press('ArrowRight');
-    }
-    await page.keyboard.press('Enter');
+    await enterTab(page, 'search');
     const input = page.locator('.tab-bar-search-input');
     await expect(input).toBeFocused();
     await page.keyboard.type('Channel');
@@ -765,7 +761,7 @@ test('a hover on the Guide under its open group menu hands the bar\'s keys back 
   await page.route('**/xmltv.php*', (route) =>
     route.fulfill({ status: 200, contentType: 'application/xml', body: xmltv }));
   await routeLiveManifest(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
   await enterTab(page, 'epg');
   await expect(page.locator('#view-epg')).toBeVisible();
@@ -809,7 +805,7 @@ test('a hover under the account menu stays out of the Guide while its group menu
   await page.route('**/xmltv.php*', (route) =>
     route.fulfill({ status: 200, contentType: 'application/xml', body: xmltv }));
   await routeLiveManifest(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
   await enterTab(page, 'epg');
   await expect(page.locator('#view-epg')).toBeVisible();

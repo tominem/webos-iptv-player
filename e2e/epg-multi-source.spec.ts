@@ -83,7 +83,7 @@ async function setup(page: Page): Promise<void> {
 
 test('each playlist channel uses its own EPG when XMLTV ids collide', async ({ page }) => {
   await setup(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   await page.evaluate(() =>
@@ -110,7 +110,7 @@ test('applies the saved time correction only to its EPG source', async ({ page }
       'http://host/m3u.xml': 60,
     }));
   });
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   await page.evaluate(() =>
@@ -127,7 +127,7 @@ test('applies the saved time correction only to its EPG source', async ({ page }
 
 test('filters EPG channels by source, group, and channel name', async ({ page }) => {
   await setup(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   await page.evaluate(() =>
@@ -153,7 +153,7 @@ test('filters EPG channels by source, group, and channel name', async ({ page })
 
 test('Back closes EPG filters before leaving the guide', async ({ page }) => {
   await setup(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   await page.evaluate(() =>
@@ -173,7 +173,7 @@ test('Back closes EPG filters before leaving the guide', async ({ page }) => {
 
 test('an open groups menu holds the only ring, which returns to its button on Back', async ({ page }) => {
   await setup(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
   await page.evaluate(() =>
     document.dispatchEvent(new KeyboardEvent('keydown', { keyCode: 403, bubbles: true })));
@@ -195,7 +195,7 @@ test('an open groups menu holds the only ring, which returns to its button on Ba
 
 test('Blue leaves EPG search without stale keyboard focus', async ({ page }) => {
   await setup(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   await page.evaluate(() =>

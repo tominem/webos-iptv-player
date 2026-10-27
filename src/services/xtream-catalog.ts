@@ -691,47 +691,11 @@ export interface LoadAllOptions {
   wholeList?: boolean;
 }
 
-// Whole-list loads started ahead of time, so the first Search finds them done.
-// They live in memory because the snapshots can exceed the cache budget.
-const warmedLists = new Map<string, { generation: number; startedAt: number; promise: Promise<unknown> }>();
-
-function takeWarmed<T>(key: string): Promise<T[]> | null {
-  const entry = warmedLists.get(key);
-  if (!entry) return null;
-  if (entry.generation !== catalogCacheGeneration()
-      || Date.now() - entry.startedAt >= StorageService.getXtreamCatalogRefreshIntervalMs()) {
-    warmedLists.delete(key);
-    return null;
-  }
-  return entry.promise as Promise<T[]>;
-}
-
-function warm<T>(key: string, load: () => Promise<T[]>): void {
-  if (takeWarmed(key)) return;
-  const promise = load();
-  const entry = { generation: catalogCacheGeneration(), startedAt: Date.now(), promise };
-  warmedLists.set(key, entry);
-  promise.catch(() => {
-    if (warmedLists.get(key) === entry) warmedLists.delete(key);
-  });
-}
-
-export function clearPrefetchedCatalogs(): void {
-  warmedLists.clear();
-}
-
-export function prefetchSearchCatalog(account: PlaylistEntry): void {
-  warm(`${account.id}|vod_all`, () => loadAllVodStreams(account, undefined, { wholeList: true }));
-  warm(`${account.id}|series_all`, () => loadAllSeries(account, undefined, { wholeList: true }));
-}
-
 export function loadAllVodStreams(
   account: PlaylistEntry,
   signal?: AbortSignal,
   options: LoadAllOptions = {},
 ): Promise<VodItem[]> {
-  const warmed = options.wholeList ? takeWarmed<VodItem>(`${account.id}|vod_all`) : null;
-  if (warmed) return warmed;
   return cachedList(
     `${account.id}|vod_all`,
     signal,
@@ -757,8 +721,6 @@ export function loadAllSeries(
   signal?: AbortSignal,
   options: LoadAllOptions = {},
 ): Promise<SeriesItem[]> {
-  const warmed = options.wholeList ? takeWarmed<SeriesItem>(`${account.id}|series_all`) : null;
-  if (warmed) return warmed;
   return cachedList(
     `${account.id}|series_all`,
     signal,

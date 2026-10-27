@@ -125,6 +125,24 @@
   border-radius: 12px; overflow: hidden;
   background: var(--catalog-surface);
 }
+/* The provider's score, on the poster's top corner; the lock badge, when there is one, keeps the corner. */
+.catalog-rating {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.72);
+  color: #fff;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.catalog-rating svg { width: 18px; height: 18px; color: var(--success); }
+.catalog-poster-wrap .lock-badge ~ .catalog-rating { right: 58px; }
 .catalog-poster { width: 100%; height: 100%; object-fit: cover; display: block; }
 .catalog-poster-empty { display: flex; align-items: center; justify-content: center; font-size: 72px; color: var(--text-secondary); }
 .catalog-tile-name {

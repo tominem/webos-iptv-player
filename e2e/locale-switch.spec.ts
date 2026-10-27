@@ -3,7 +3,7 @@ import { test, expect, routePlaylist, seedPlaylist, enterTab } from './helpers';
 test('switching through every language refreshes cached Recently Watched labels', async ({ page }) => {
   await routePlaylist(page);
   await seedPlaylist(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
 
   const recentLabel = page.locator(
     '[data-group="builtin:recently-watched"] .group-name',

@@ -2,7 +2,8 @@ import type { Action, PlaylistEntry, SeriesCategory, SeriesItem, SeriesInfo, Epi
 import { html, raw, Safe } from '../utils/dom';
 import { morph } from '../utils/morph';
 import { StorageService } from '../services/storage-service';
-import { loadSeriesCategories, loadSeries, loadSeriesInfo } from '../services/xtream-catalog';
+import { loadSeriesCategories, loadSeries, loadSeriesInfo, loadVodCategories } from '../services/xtream-catalog';
+import { withoutMovieCategories } from '../utils/catalog-categories';
 import { xtreamEpisodeUrl, type XtreamCredentials } from '../utils/xtream-url';
 import { CatalogView, type CatalogHandlers, type CollectionKind, type CollectionEntry } from './catalog-view';
 import { PLAY_ICON, watchlistIcon } from './icons';
@@ -55,7 +56,11 @@ export class Series extends CatalogView<SeriesCategory, SeriesItem> {
     account: PlaylistEntry,
     signal: AbortSignal,
   ): Promise<SeriesCategory[]> {
-    return loadSeriesCategories(account, signal);
+    // The movie list only filters repeats out: without it the series still show.
+    return Promise.all([
+      loadSeriesCategories(account, signal),
+      loadVodCategories(account, signal).catch((): never[] => []),
+    ]).then(([series, movies]) => withoutMovieCategories(series, movies));
   }
   protected loadItems(
     account: PlaylistEntry,
@@ -67,6 +72,7 @@ export class Series extends CatalogView<SeriesCategory, SeriesItem> {
   protected itemId(s: SeriesItem): string { return s.seriesId; }
   protected itemName(s: SeriesItem): string { return s.name; }
   protected itemPoster(s: SeriesItem): string { return s.poster; }
+  protected itemRating(s: SeriesItem): string { return s.rating; }
   protected itemCategoryId(s: SeriesItem): string { return s.categoryId; }
   protected clearDetail(): void {
     this.detailController?.abort();
@@ -213,12 +219,22 @@ export class Series extends CatalogView<SeriesCategory, SeriesItem> {
   }
 
   private episodesAfter(episodeId: string, series: SeriesItem): VodQueueItem[] {
+    const { episodes, index } = this.episodeOrder(episodeId);
+    return index < 0 ? [] : episodes.slice(index + 1).map((ep) => this.episodePlayback(series, ep));
+  }
+
+  // Nearest first, so going back walks one episode at a time.
+  private episodesBefore(episodeId: string, series: SeriesItem): VodQueueItem[] {
+    const { episodes, index } = this.episodeOrder(episodeId);
+    return index < 0 ? [] : episodes.slice(0, index).reverse().map((ep) => this.episodePlayback(series, ep));
+  }
+
+  private episodeOrder(episodeId: string): { episodes: Episode[]; index: number } {
     const info = this.currentInfo;
-    if (!info) return [];
+    if (!info) return { episodes: [], index: -1 };
     const episodes = info.seasons.reduce<Episode[]>(
       (all, season) => all.concat(info.episodesBySeason[season] ?? []), []);
-    const index = episodes.findIndex((ep) => ep.id === episodeId);
-    return index < 0 ? [] : episodes.slice(index + 1).map((ep) => this.episodePlayback(series, ep));
+    return { episodes, index: episodes.findIndex((ep) => ep.id === episodeId) };
   }
 
   private playEpisode(episodeId: string): void {
@@ -231,6 +247,7 @@ export class Series extends CatalogView<SeriesCategory, SeriesItem> {
       ...this.episodePlayback(series, ep),
       resumeSecs: saved ? saved.position : 0,
       episodeQueue: this.episodesAfter(ep.id, series),
+      episodeHistory: this.episodesBefore(ep.id, series),
     });
   }
 
@@ -258,6 +275,7 @@ export class Series extends CatalogView<SeriesCategory, SeriesItem> {
       resumeSecs: r.position,
       subtitles: [],
       episodeQueue: r.episodeQueue,
+      episodeHistory: r.episodeHistory,
       watchlistOwner: r.watchlistOwner,
     });
   }

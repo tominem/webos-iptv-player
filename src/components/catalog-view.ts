@@ -14,6 +14,7 @@ import { InputMode } from '../navigation/input-mode';
 import { html, raw, Safe, withInstantScroll } from '../utils/dom';
 import { categoryLockBadge, lockBadge } from './parental-badge';
 import { SORT_ASCENDING_ICON, SORT_DESCENDING_ICON, SEE_ALL_ICON, REMOVE_ICON, CHECK_ICON, TRASH_ICON, PENCIL_ICON } from './icons';
+import { ratingBadge } from './rating-badge';
 import { ConfirmationPrompt } from './confirmation-prompt';
 import { backKey, okHint } from './key-hints';
 import { showToast } from './toast';
@@ -282,6 +283,7 @@ export abstract class CatalogView<C extends { id: string; name: string }, I exte
   protected abstract itemId(item: I): string;
   protected abstract itemName(item: I): string;
   protected abstract itemPoster(item: I): string;
+  protected abstract itemRating(item: I): string;
   protected abstract itemCategoryId(item: I): string;
   protected abstract itemCount(count: number): string;
   protected abstract readonly parentalKind: 'vod' | 'series';
@@ -657,6 +659,20 @@ export abstract class CatalogView<C extends { id: string; name: string }, I exte
     this.requestController?.abort();
     this.requestController = null;
     this.onRequestSessionReset();
+  }
+
+  // Leaving the section: drop what it holds so only one section sits in memory.
+  release(): void {
+    this.deactivate();
+    this.account = null;
+    this.categories = [];
+    this.railGroups = [];
+    this.itemsByCategory = {};
+    this.serverItemsByCategory = {};
+    this.resume = [];
+    this.clearLayer('grid');
+    this.clearLayer('detail');
+    this.clearLayer('browse');
   }
 
   async open(account: PlaylistEntry): Promise<void> {
@@ -1349,7 +1365,7 @@ export abstract class CatalogView<C extends { id: string; name: string }, I exte
       <div class="catalog-tile" ${raw(managing ? '' : 'data-focusable')} data-key="i:${cat}:${id}"
            data-item-id="${id}" data-category-id="${cat}">
         <div class="catalog-poster-wrap">${this.posterCell(this.itemName(item), this.itemPoster(item))}${
-          this.itemLockBadge(cat, id)}${overlay}</div>
+          this.itemLockBadge(cat, id)}${ratingBadge(this.itemRating(item))}${overlay}</div>
         <div class="catalog-tile-name">${this.itemName(item)}</div>
       </div>
     `;

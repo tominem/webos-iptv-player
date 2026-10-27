@@ -13,6 +13,7 @@ let onSelectAccount: ReturnType<typeof vi.fn>;
 let onAccountMenuOpen: ReturnType<typeof vi.fn>;
 let onAccountMenuClose: ReturnType<typeof vi.fn>;
 let onLockNow: ReturnType<typeof vi.fn>;
+let onBack: ReturnType<typeof vi.fn>;
 let bar: TabBar;
 
 beforeEach(() => {
@@ -27,9 +28,10 @@ beforeEach(() => {
   onAccountMenuOpen = vi.fn();
   onAccountMenuClose = vi.fn();
   onLockNow = vi.fn();
+  onBack = vi.fn(() => false);
   bar = new TabBar({
     onSwitch, onEnter, onSearchQuery, onSearchLeave, onSearchClose, onSelectAccount, onAccountMenuOpen, onAccountMenuClose,
-    onLockNow,
+    onLockNow, onBack,
   });
   bar.setSections(true); // Xtream by default
   bar.setShown(true);
@@ -59,6 +61,156 @@ describe('TabBar', () => {
   it('renders only Live/Guide/Settings/Search for an M3U-only account', () => {
     bar.setSections(false);
     expect(items()).toEqual(['Live', 'Guide', 'Settings', 'Search']);
+  });
+
+  describe('tabs per section', () => {
+    const label = () => document.querySelector('.tab-bar-label')?.textContent ?? null;
+    const ringed = () => {
+      Focus.flush();
+      return document.querySelector<HTMLElement>('.tab-bar-item.focused')?.dataset.section ?? null;
+    };
+
+    it('names the open section with a label that is not a tab, beside Search', () => {
+      bar.setContext('live');
+      expect(label()).toBe('Live');
+      expect(items()).toEqual(['Search']);
+      bar.setContext('movies');
+      expect(label()).toBe('Movies');
+      bar.setContext('series');
+      expect(label()).toBe('Series');
+      bar.setContext('all');
+      expect(label()).toBeNull();
+      expect(items()).toEqual(['Live', 'Guide', 'Movies', 'Series', 'Settings', 'Search']);
+    });
+
+    it('labels the Guide or Settings while one of them is open', () => {
+      bar.setContext('live');
+      bar.setActive('epg');
+      expect(label()).toBe('Guide');
+      bar.setActive('settings');
+      expect(label()).toBe('Settings');
+      bar.setActive('live');
+      expect(label()).toBe('Live');
+      bar.setContext('movies');
+      bar.setActive('settings');
+      expect(label()).toBe('Settings');
+    });
+
+    it('keeps the section label while Search is open over it', () => {
+      bar.setContext('live');
+      bar.setActive('epg');
+      bar.setActive('search');
+      expect(label()).toBe('Guide');
+    });
+
+    it('keeps the M3U-only set and ignores a section it does not have', () => {
+      bar.setSections(false);
+      bar.setContext('live');
+      expect(label()).toBe('Live');
+      bar.setContext('movies');
+      expect(label()).toBeNull();
+      expect(items()).toEqual(['Live', 'Guide', 'Settings', 'Search']);
+    });
+
+    it('keeps its context when the account set changes', () => {
+      bar.setContext('movies');
+      bar.setSections(true);
+      expect(label()).toBe('Movies');
+    });
+
+    it('puts the keys on Search, never on the label', () => {
+      bar.setContext('movies');
+      bar.focus();
+      expect(ringed()).toBe('search');
+      press('left');
+      expect(ringed()).toBe('search');
+      press('right');
+      expect(ringed()).toBe('search');
+    });
+
+    it('also lands on Search when the active section is set after the context', () => {
+      bar.setContext('series');
+      bar.setActive('series');
+      bar.focus();
+      expect(ringed()).toBe('search');
+    });
+
+    it('opens the search box on OK and hands the keys back to the content on Down', () => {
+      bar.setContext('live');
+      bar.focus();
+      press('down');
+      expect(onEnter).toHaveBeenCalledWith('live', 'key');
+      expect(bar.focused).toBe(false);
+
+      bar.focus();
+      press('select');
+      expect(document.querySelector('.tab-bar-search.expanded')).not.toBeNull();
+    });
+
+    it('lets the host take Back on a label-only bar, else returns to the content', () => {
+      bar.setContext('live');
+      bar.focus();
+      onBack.mockReturnValue(true);
+      press('back');
+      expect(onBack).toHaveBeenCalledTimes(1);
+      expect(onEnter).not.toHaveBeenCalled();
+      expect(bar.focused).toBe(true);
+
+      onBack.mockReturnValue(false);
+      press('back');
+      expect(onEnter).toHaveBeenCalledWith('live', 'key');
+      expect(bar.focused).toBe(false);
+    });
+
+    it('ignores the Back handler while the bar shows every tab', () => {
+      onBack.mockReturnValue(true);
+      bar.focus();
+      press('back');
+      expect(onBack).not.toHaveBeenCalled();
+      expect(onEnter).toHaveBeenCalledWith('live', 'key');
+    });
+
+    it('falls back to the section\'s own label when the active one is another section\'s', () => {
+      bar.setActive('series');
+      bar.setContext('live');
+      expect(label()).toBe('Live');
+    });
+
+    it('applies a context set before the bar is shown', () => {
+      bar.setShown(false);
+      bar.setContext('series');
+      bar.setShown(true);
+      expect(label()).toBe('Series');
+    });
+  });
+
+  describe('search placeholder', () => {
+    const placeholder = () =>
+      document.querySelector<HTMLInputElement>('.tab-bar-search-input')?.placeholder;
+
+    it('names what the open section searches', () => {
+      expect(placeholder()).toBe('Search channels, movies, and series…');
+      bar.setSearchScope('live');
+      expect(placeholder()).toBe('Search channels…');
+      bar.setSearchScope('movies');
+      expect(placeholder()).toBe('Search movies…');
+      bar.setSearchScope('series');
+      expect(placeholder()).toBe('Search series…');
+      bar.setSearchScope('all');
+      expect(placeholder()).toBe('Search channels, movies, and series…');
+    });
+
+    it('keeps the channel placeholder without an Xtream account', () => {
+      bar.setSections(false);
+      expect(placeholder()).toBe('Search channels…');
+    });
+
+    it('applies a scope set before the bar is shown', () => {
+      bar.setShown(false);
+      bar.setSearchScope('series');
+      bar.setShown(true);
+      expect(placeholder()).toBe('Search series…');
+    });
   });
 
   it('focus() puts the ring on the active tab', () => {

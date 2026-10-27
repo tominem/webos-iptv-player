@@ -137,7 +137,7 @@ async function prepareM3U(page: Page): Promise<void> {
       },
     }));
   }, channelKey({ url: 'http://streams.example.com/one.m3u8' } as Channel));
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
   await expect(page.locator('.channel-item')).toHaveCount(2);
 }
@@ -145,7 +145,7 @@ async function prepareM3U(page: Page): Promise<void> {
 async function prepareXtream(page: Page): Promise<void> {
   await page.clock.setFixedTime(NOW);
   await seedXtream(page, { catalog: 'large' });
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 }
 
@@ -371,7 +371,6 @@ const M3U_SCREENS: Screen[] = [
     name: 'number-entry',
     budget: 0.001,
     go: async (p) => {
-      await p.keyboard.press('Escape');
       await p.keyboard.press('Escape');
       await enterTab(p, 'live');
       await p.keyboard.press('2');

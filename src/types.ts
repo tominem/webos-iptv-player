@@ -614,6 +614,8 @@ export interface ResumeEntry {
   updatedAt: number;  // epoch ms, for recency ordering
   episodeQueue?: VodQueueItem[];
   watchlistOwner?: WatchlistOwner;
+  /** The episodes before this one, nearest first. */
+  episodeHistory?: VodQueueItem[];
   /** Catalog category at save time, so parental rules apply from the Continue rail. */
   categoryId?: string;
 }
@@ -674,6 +676,8 @@ export interface WatchlistOwner {
 export interface VodPlayback extends VodQueueItem {
   resumeSecs: number;
   episodeQueue?: VodQueueItem[];
+  /** The episodes before this one, nearest first, so CH- can go back. */
+  episodeHistory?: VodQueueItem[];
   /** Transient movie queue created only when playback starts from Watchlist. */
   watchlistQueue?: VodQueueItem[];
   onBack: () => void;

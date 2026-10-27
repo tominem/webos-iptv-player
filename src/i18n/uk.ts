@@ -33,6 +33,8 @@ export const UK_MESSAGES = {
   'nav.switchAccount': 'Змінити обліковий запис',
   'search.all': 'Пошук каналів, фільмів і серіалів…',
   'search.channels': 'Пошук каналів…',
+  'search.movies': 'Пошук фільмів…',
+  'search.series': 'Пошук серіалів…',
   'search.sidebarAll': 'Пошук у всіх каналах…',
   'search.sidebarPlaylist': 'Пошук у {name}…',
   'search.ariaChannels': 'Пошук каналів',
@@ -200,6 +202,7 @@ export const UK_MESSAGES = {
   'player.timeshift': 'ТАЙМШИФТ',
   'player.remaining': 'Залишилося {duration}',
   'player.upNext': 'Далі',
+  'player.nextEpisode': 'Наступна серія',
   'player.playingIn': {
     one: 'Початок через {count} секунду',
     few: 'Початок через {count} секунди',

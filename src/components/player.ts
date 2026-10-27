@@ -37,6 +37,10 @@ import { diagnoseStream, type StreamFailure } from '../services/stream-diagnosis
 import { createLogger } from '../utils/logger';
 import { t } from '../i18n';
 import { showToast } from './toast';
+import { SeekScrubber } from '../utils/seek-scrubber';
+import { NextEpisodeCard } from './next-episode-card';
+import { VideoFrameSource, browserFrameDeps, type FrameCanvas } from '../services/frame-source';
+import { formatPosition } from '../utils/time';
 import { PlayerPipeline, type PipelineManifest } from './player-pipeline';
 import {
   PlaybackRateController,
@@ -64,6 +68,12 @@ function accountRetryWaitMs(attempt: number): number {
 // True on the TV's webOS WebView; false in desktop preview / tests.
 const STREAMING_MIMES = new Set(['application/vnd.apple.mpegurl', 'application/dash+xml']);
 
+export interface FrameProvider {
+  readonly available: boolean;
+  frameAt(time: number): Promise<FrameCanvas | null>;
+  release(): void;
+}
+
 export class Player {
   private container: HTMLElement;
   private onBack: () => void;
@@ -89,6 +99,30 @@ export class Player {
   private upNextAuthorized = false;
   private pendingResumeSecs = 0;
   private pendingSeekTarget: number | null = null;
+  // Left/Right on a movie move a target and preview its frame; the seek follows when the keys rest.
+  private readonly scrubber = new SeekScrubber({
+    step: CONFIG.PLAYER.SEEK_STEP,
+    commitDelayMs: CONFIG.PLAYER.SEEK_PREVIEW_COMMIT_MS,
+    position: () => this.pendingSeekTarget ?? this.videoEl!.currentTime,
+    duration: () => this.videoEl!.duration,
+    onMove: target => this.onScrubMove(target),
+    onCommit: target => this.onScrubCommit(target),
+    onCancel: () => this.onScrubCancel(),
+  });
+  // The next-episode card over the last seconds of an episode.
+  private readonly nextCard: NextEpisodeCard;
+  private nextPromptDismissed = false;
+  // The next episode starts at once, not after the countdown (it was asked for, or its card was up).
+  private skipUpNextCountdown = false;
+  private frames: FrameProvider | null = null;
+  private frameTimer: ReturnType<typeof setTimeout> | null = null;
+  private frameReleaseTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Makes the source of preview frames for a movie URL; tests replace it. */
+  createFrameSource: (url: string) => FrameProvider = url => new VideoFrameSource(url, browserFrameDeps, {
+    width: CONFIG.PLAYER.SEEK_PREVIEW_WIDTH,
+    height: CONFIG.PLAYER.SEEK_PREVIEW_HEIGHT,
+    timeoutMs: CONFIG.PLAYER.SEEK_PREVIEW_FRAME_TIMEOUT_MS,
+  });
   private wasPlayingBeforeHide = false;
   private dvrPauseTick: ReturnType<typeof setInterval> | null = null;
   // Catch-up progress checkpointing. Wall-clock time of the last periodic save;
@@ -183,6 +217,7 @@ export class Player {
       onVerified: rate => log.info('Playback rate verified',
         'event=playback.rate.verified', ...this.playbackRateFields(rate)),
     });
+    this.nextCard = new NextEpisodeCard(container);
     this.osd = new PlayerOsd(container, {
       getSnapshot: () => this.osdSnapshot(),
       canAutoReveal: () => this.canAutoRevealOsd(),
@@ -191,6 +226,7 @@ export class Player {
       onPauseToggle: () => this.pauseToggle(),
       onGoLive: () => this.goToLive(),
       onResync: () => this.resyncAV(),
+      onNextEpisode: () => this.playNextEpisodeNow(),
       onPlayNext: () => this.playNextItem(),
       onCancelNext: () => this.cancelNextItem(),
     });
@@ -553,6 +589,11 @@ export class Player {
     this.playbackGeneration++;
     this.healthStartedAt = Date.now();
     this.liveHistoryGeneration = -1;
+    // A seek in progress belongs to the movie that is going away.
+    this.scrubber.cancel();
+    this.releaseFrames();
+    this.nextCard.hide();
+    this.nextPromptDismissed = false;
   }
 
   private cancelErrorAdvance(): void {
@@ -723,6 +764,7 @@ export class Player {
       duration: dur,
       updatedAt: Date.now(),
       episodeQueue: v.episodeQueue,
+      episodeHistory: v.episodeHistory,
       watchlistOwner: v.watchlistOwner,
       categoryId: v.categoryId,
     });
@@ -766,24 +808,43 @@ export class Player {
     switch (action) {
       case 'back':
       case 'stop': {
+        // Back first drops a seek in progress, then the next-episode card; the player stays.
+        if (action === 'back' && this.scrubber.active) {
+          this.scrubber.cancel();
+          break;
+        }
+        if (action === 'back' && this.nextCard.visible) {
+          this.nextPromptDismissed = true;
+          this.nextCard.hide();
+          break;
+        }
         const back = this.vod?.onBack;
         this.stop();       // saves the resume point, clears VOD state
         back?.();
         break;
       }
       case 'select':
+        if (this.scrubber.active) {
+          this.scrubber.commit();
+          break;
+        }
         {
           const pointer = this.osd.pointerPosition();
+          // OK on the remote starts the next episode; a Magic Remote click is only aimed at the bar.
+          if (this.nextCard.visible && pointer.x === null) {
+            this.playNextEpisodeNow();
+            break;
+          }
           if (this.osd.seekAtPointer(pointer.x, pointer.y)) break;
         }
         if (this.canSeek()) this.pauseToggle();
         else this.osd.toggle();
         break;
       case 'left':
-        this.seekBy(-CONFIG.PLAYER.SEEK_STEP);
+        this.stepVod(-1);
         break;
       case 'right':
-        this.seekBy(CONFIG.PLAYER.SEEK_STEP);
+        this.stepVod(1);
         break;
       case 'play':
         if (this.videoEl?.paused) this.pauseToggle();
@@ -791,11 +852,17 @@ export class Player {
       case 'pause':
         if (this.videoEl && !this.videoEl.paused) this.pauseToggle();
         break;
+      case 'channel_up':
+        if (this.hasNextEpisode()) this.playNextEpisodeNow();
+        break;
+      case 'channel_down':
+        this.playPreviousEpisode();
+        break;
       case 'yellow':
         this.showOSD();
         break;
       default:
-        break; // up/down/channel_up/channel_down are no-ops (no channels in VOD)
+        break; // up/down are no-ops (no channels in VOD)
     }
   }
 
@@ -846,6 +913,9 @@ export class Player {
   private onEnded(): void {
     if (this.vod) {
       const v = this.vod;
+      // Read before stop() clears them: a card that was up, or a skip, starts the next at once.
+      const immediate = this.skipUpNextCountdown || this.nextCard.visible;
+      this.skipUpNextCountdown = false;
       this.vod = null; // before stop(), so it doesn't re-save a resume point for a finished movie
       StorageService.clearResume(v.accountId, v.kind, v.itemId);
       if (v.kind === 'vod') {
@@ -857,7 +927,10 @@ export class Player {
       const queue = v.kind === 'episode' ? v.episodeQueue : v.watchlistQueue;
       const next = queue?.[0];
       if (next) {
-        this.startNextItem(next, queue?.slice(1) ?? [], v.kind === 'episode', v.onBack, v);
+        const isEpisode = v.kind === 'episode';
+        // The episode that just ended is the nearest one behind the next.
+        const history = isEpisode ? [queueItemOf(v), ...(v.episodeHistory ?? [])] : undefined;
+        this.startNextItem(next, queue?.slice(1) ?? [], isEpisode, v.onBack, v, immediate, history);
         return;
       }
       v.onBack();
@@ -918,6 +991,8 @@ export class Player {
     isEpisodeQueue: boolean,
     onBack: () => void,
     finished: VodQueueItem,
+    immediate = false,
+    history?: VodQueueItem[],
   ): void {
     this.recreateVideoEl();
     // The PIN unlocked the whole series, so its next episode continues.
@@ -926,9 +1001,14 @@ export class Player {
       ...next,
       resumeSecs: 0,
       episodeQueue: isEpisodeQueue ? remaining : undefined,
+      episodeHistory: isEpisodeQueue ? history : undefined,
       watchlistQueue: isEpisodeQueue ? undefined : remaining,
       onBack,
     };
+    if (immediate) {
+      this.playNextItem(true);
+      return;
+    }
     this.upNextSeconds = CONFIG.PLAYER.UP_NEXT_COUNTDOWN;
     this.osd.show();
     show(this.container);
@@ -946,9 +1026,9 @@ export class Player {
     this.upNextSeconds = 0;
   }
 
-  private playNextItem(): void {
+  private playNextItem(force = false): void {
     const next = this.vod;
-    if (!next || !this.upNextTimer) return;
+    if (!next || (!this.upNextTimer && !force)) return;
     const authorized = this.upNextAuthorized;
     log.debug('Up next starting', 'event=parental.upnext', `kind=${next.kind}`,
       `sameItem=${String(authorized)}`);
@@ -1280,6 +1360,95 @@ export class Player {
     return this.isLiveDvr();
   }
 
+  // Left/Right on a movie or episode: move the seek target with a preview. Without a
+  // known length, or with the preview off, the seek is immediate as before.
+  private stepVod(direction: 1 | -1): void {
+    const v = this.videoEl;
+    if (CONFIG.PLAYER.SEEK_PREVIEW && v && Number.isFinite(v.duration) && v.duration > 0) {
+      this.scrubber.press(direction);
+    } else {
+      this.seekBy(direction * CONFIG.PLAYER.SEEK_STEP);
+    }
+  }
+
+  private onScrubMove(target: number): void {
+    this.nextCard.hide();
+    this.osd.showSeekPreview(target / this.videoEl!.duration, formatPosition(target));
+    this.clearFrameRelease();
+    this.requestFrame(target);
+  }
+
+  private onScrubCommit(target: number): void {
+    this.cancelFrameRequest();
+    this.osd.hideSeekPreview();
+    this.seekTo(target);
+    this.scheduleFrameRelease();
+  }
+
+  private onScrubCancel(): void {
+    this.cancelFrameRequest();
+    this.osd.hideSeekPreview();
+    this.refreshProgress();
+    this.scheduleFrameRelease();
+  }
+
+  // The frame at `target` follows the keys a moment later, so a held key asks only once it slows.
+  // The TV's single media pipeline is disturbed by a second video: the movie pauses
+  // and the copied frame comes out black. There only the time follows the keys.
+  private framesWanted(): boolean {
+    return CONFIG.PLAYER.SEEK_PREVIEW_FRAMES && !isWebOS();
+  }
+
+  private requestFrame(target: number): void {
+    this.cancelFrameRequest();
+    if (!this.framesWanted()) return;
+    this.frameTimer = setTimeout(() => {
+      this.frameTimer = null;
+      void this.showFrame(target);
+    }, CONFIG.PLAYER.SEEK_PREVIEW_FRAME_DELAY_MS);
+  }
+
+  private async showFrame(target: number): Promise<void> {
+    const url = this.videoEl?.currentSrc || this.videoEl?.src;
+    // A blob: URL is a library's MediaSource, which a second element cannot open.
+    if (!url || url.startsWith('blob:')) return;
+    this.frames ??= this.createFrameSource(url);
+    const frames = this.frames;
+    if (!frames.available) {
+      this.osd.setSeekPreviewFrame(null);
+      return;
+    }
+    const frame = await frames.frameAt(target);
+    // The keys moved on, or the seek was made, while the frame was coming.
+    if (!this.scrubber.active || this.scrubber.target !== target) return;
+    // A miss keeps the last frame, so the picture does not flicker between two.
+    if (frame) this.osd.setSeekPreviewFrame(frame as unknown as HTMLCanvasElement);
+  }
+
+  private cancelFrameRequest(): void {
+    if (this.frameTimer === null) return;
+    clearTimeout(this.frameTimer);
+    this.frameTimer = null;
+  }
+
+  private scheduleFrameRelease(): void {
+    this.clearFrameRelease();
+    this.frameReleaseTimer = setTimeout(() => this.releaseFrames(), CONFIG.PLAYER.SEEK_PREVIEW_RELEASE_MS);
+  }
+
+  private clearFrameRelease(): void {
+    if (this.frameReleaseTimer === null) return;
+    clearTimeout(this.frameReleaseTimer);
+    this.frameReleaseTimer = null;
+  }
+
+  private releaseFrames(): void {
+    this.cancelFrameRequest();
+    this.clearFrameRelease();
+    this.frames?.release();
+    this.frames = null;
+  }
+
   seekBy(seconds: number): void {
     this.seekTo((this.pendingSeekTarget ?? this.videoEl?.currentTime ?? 0) + seconds);
   }
@@ -1288,6 +1457,7 @@ export class Player {
   private seekToFraction(fraction: number): void {
     const v = this.videoEl;
     if (!v) return;
+    this.scrubber.cancel();
     const f = Math.max(0, Math.min(1, fraction));
     const win = this.liveDvrWindow();
     if (win) this.seekTo(win.start + f * win.length);
@@ -1435,6 +1605,47 @@ export class Player {
       }
     }
     this.osd.refreshProgress();
+    this.updateNextCard(v);
+  }
+
+  // Over the last seconds of an episode that has another queued, offer the next one.
+  private updateNextCard(v: HTMLVideoElement): void {
+    const next = this.vod?.kind === 'episode' ? this.vod.episodeQueue?.[0] : undefined;
+    const left = v.duration - v.currentTime;
+    // Back out of the last seconds (a seek back) and the card may come again.
+    if (left > CONFIG.PLAYER.NEXT_EPISODE_PROMPT_SECS) this.nextPromptDismissed = false;
+    // It would sit under the seek bubble, which has the keys while a seek is in progress.
+    if (!next || this.nextPromptDismissed || this.upNextTimer || this.scrubber.active
+        || v.duration < CONFIG.PLAYER.NEXT_EPISODE_MIN_DURATION_SECS
+        || left > CONFIG.PLAYER.NEXT_EPISODE_PROMPT_SECS) {
+      this.nextCard.hide();
+      return;
+    }
+    // The last timeupdate lands on the end, just before `ended`, which still needs the card up.
+    if (!(left > 0)) return;
+    this.nextCard.show(next.title, Math.ceil(left));
+  }
+
+  private hasNextEpisode(): boolean {
+    return this.vod?.kind === 'episode' && (this.vod.episodeQueue?.length ?? 0) > 0;
+  }
+
+  // CH-: the episode before this one, with this one still in the queue after it. This one
+  // keeps its resume point, since it was left, not finished.
+  private playPreviousEpisode(): void {
+    const v = this.vod;
+    const previous = v?.kind === 'episode' ? v.episodeHistory?.[0] : undefined;
+    if (!v || !previous || this.upNextTimer) return;
+    this.stop();
+    this.startNextItem(
+      previous, [queueItemOf(v), ...(v.episodeQueue ?? [])], true, v.onBack, v, true,
+      v.episodeHistory!.slice(1));
+  }
+
+  private playNextEpisodeNow(): void {
+    this.nextCard.hide();
+    this.skipUpNextCountdown = true;
+    this.onEnded();
   }
 
   hideOSD(): void {
@@ -1495,6 +1706,7 @@ export class Player {
       catchup: this.catchupInfo,
       vodTitle: this.vod?.title ?? null,
       upNextSeconds: this.upNextSeconds,
+      hasNextEpisode: this.hasNextEpisode(),
       dvr: win && video
         ? dvrState(win, position, CONFIG.PLAYER.DVR_LIVE_EDGE)
         : null,
@@ -1757,6 +1969,15 @@ export class Player {
     // plain global stepping, not whatever view was active before this jump.
     this.play(index, undefined, null);
   }
+}
+
+// Just the queue fields of a playing item, so a queue does not hold on to its callbacks.
+function queueItemOf(v: VodQueueItem): VodQueueItem {
+  return {
+    url: v.url, title: v.title, poster: v.poster, accountId: v.accountId, itemId: v.itemId,
+    kind: v.kind, categoryId: v.categoryId, parentalItemId: v.parentalItemId,
+    subtitles: v.subtitles, searchMeta: v.searchMeta, watchlistOwner: v.watchlistOwner,
+  };
 }
 
 function sameParentalItem(a: VodQueueItem, b: VodQueueItem): boolean {

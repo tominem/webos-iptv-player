@@ -92,7 +92,7 @@ async function setup(page: Page, seedHistory = true): Promise<void> {
 }
 
 async function openRecentlyWatched(page: Page): Promise<void> {
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
   await page.locator('[data-group="builtin:recently-watched"]').click();
 }
@@ -112,7 +112,7 @@ test('mixes live and resumable Catch-up rows in recency order', async ({ page })
 
 test('adds a live channel only after confirmed playback', async ({ page }) => {
   await setup(page, false);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
 
   const manifestResponse = page.waitForResponse(response => response.url().includes('/b.m3u8'));
@@ -159,7 +159,7 @@ test('starts live and resumes Catch-up directly from Recently Watched', async ({
 
 test('clears Recently Watched without clearing VOD resume', async ({ page }) => {
   await setup(page);
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
   await enterTab(page, 'settings');
 
@@ -201,7 +201,7 @@ test('filters Recently Watched by the selected playlist', async ({ page }) => {
     bravo: stableChannelKey(LIVE_URL),
   });
 
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
   await page.locator('[data-playlist="p1"]').click();
   await page.locator('[data-group="builtin:recently-watched"]').click();

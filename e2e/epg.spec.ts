@@ -38,7 +38,7 @@ test('stale cached EPG stays visible while a refresh is in flight', async ({ pag
   });
 
   try {
-    await page.goto('/');
+    await page.goto('/?start=live');
     const nowPlaying = page.locator('.channel-main .channel-item').first().locator('.channel-now');
     await expect(nowPlaying).toHaveText('Cached Show');
 
@@ -115,7 +115,7 @@ test.describe('EPG live badge', () => {
 
   test('the EPG marks the currently-airing program with a pulsing LIVE badge', async ({ page }) => {
     await setup(page);
-    await page.goto('/');
+    await page.goto('/?start=live');
     await expect(page.locator('#view-channels')).toBeVisible();
 
     // Open the guide (Red / Programme Guide remote key).
@@ -169,7 +169,7 @@ test.describe('EPG live badge', () => {
   // contract under test is the CSS, not the navigation that sets it.
   test('the EPG search box keeps its focus styling without :focus-within', async ({ page }) => {
     await setup(page);
-    await page.goto('/');
+    await page.goto('/?start=live');
     await expect(page.locator('#view-channels')).toBeVisible();
     await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keydown', { keyCode: 403, bubbles: true })));
     await expect(page.locator('#view-epg')).toBeVisible();
@@ -197,7 +197,7 @@ test.describe('EPG live badge', () => {
     // webOS never reports the OS preference; only the animation mode gates motion.
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await setup(page);
-    await page.goto('/');
+    await page.goto('/?start=live');
     await expect(page.locator('#view-channels')).toBeVisible();
 
     await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keydown', { keyCode: 403, bubbles: true })));
@@ -254,7 +254,7 @@ test.describe('EPG time zone', () => {
 
   test('feed mode: today is the feed day, selected, and its schedule starts after midnight', async ({ page }) => {
     await setup(page, 'feed');
-    await page.goto('/');
+    await page.goto('/?start=live');
     await expect(page.locator('#view-channels')).toBeVisible();
     await openEpg(page);
 
@@ -269,7 +269,7 @@ test.describe('EPG time zone', () => {
 
   test('switching device → feed re-snaps the selected day to today', async ({ page }) => {
     await setup(page, 'device');
-    await page.goto('/');
+    await page.goto('/?start=live');
     await expect(page.locator('#view-channels')).toBeVisible();
 
     await openEpg(page);
@@ -310,7 +310,7 @@ test('Down from the tab bar resumes the Guide on the day and channel Up left', a
     localStorage.setItem('iptv_playlists', JSON.stringify([{ name: 'P', url: 'http://host/playlist.m3u' }]));
     localStorage.setItem('iptv_epg_url', JSON.stringify('http://host/epg.xml'));
   });
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels .channel-item').first()).toHaveClass(/\bfocused\b/);
 
   await page.keyboard.press('ArrowUp');
@@ -357,7 +357,7 @@ test('Right on a channel with no programmes keeps the ring on the channel', asyn
     localStorage.setItem('iptv_playlists', JSON.stringify([{ name: 'P', url: 'http://host/playlist.m3u' }]));
     localStorage.setItem('iptv_epg_url', JSON.stringify('http://host/epg.xml'));
   });
-  await page.goto('/');
+  await page.goto('/?start=live');
   await expect(page.locator('#view-channels .channel-item').first()).toHaveClass(/\bfocused\b/);
 
   await page.keyboard.press('ArrowUp');
@@ -404,7 +404,7 @@ test.describe('Guide pointer and keys', () => {
       localStorage.setItem('iptv_epg_url', JSON.stringify('http://host/epg.xml'));
       localStorage.setItem('iptv_tz_mode', JSON.stringify('device'));
     });
-    await page.goto('/');
+    await page.goto('/?start=live');
     await expect(page.locator('#view-channels .channel-item').first()).toHaveClass(/\bfocused\b/);
     await page.keyboard.press('ArrowUp');
     await page.keyboard.press('ArrowRight');
@@ -611,7 +611,7 @@ test.describe('Guide pointer and keys', () => {
       localStorage.setItem('iptv_epg_url', JSON.stringify('http://host/epg.xml'));
       localStorage.setItem('iptv_tz_mode', JSON.stringify('device'));
     });
-    await page.goto('/');
+    await page.goto('/?start=live');
     await expect(page.locator('#view-channels .channel-item').first()).toHaveClass(/\bfocused\b/);
     await page.keyboard.press('1');
     await page.keyboard.press('5');

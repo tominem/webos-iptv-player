@@ -155,6 +155,7 @@ class PlaylistServiceImpl {
   private failedSourceIds = new Set<string>();
   private liveCategoryNotices: LiveCategoryNotice[] = [];
   private refreshTimestamp: number | null = null;
+  private channelsLoaded = false;
 
   hasLiveCategoryNotices(): boolean {
     return this.currentLiveCategoryNotices().length > 0;
@@ -239,7 +240,13 @@ class PlaylistServiceImpl {
    * playlist so stale channels do not survive navigation back to the channel
    * list view.
    */
+  // Whether a channel list is in memory; a released Live section is not "no channels".
+  get loaded(): boolean {
+    return this.channelsLoaded;
+  }
+
   reset(): void {
+    this.channelsLoaded = false;
     this.failedSourceIds.clear();
     this.refreshTimestamp = null;
     this.allChannels = [];
@@ -280,6 +287,7 @@ class PlaylistServiceImpl {
     if (cached) {
       this.failedSourceIds.clear();
       this.refreshTimestamp = cached.timestamp;
+      this.channelsLoaded = true;
       const channelsNeedFiltering = cached.channels
         .some(channel => channel.playlistIds.some(id => !enabledIds.has(id)));
       this.allChannels = channelsNeedFiltering
@@ -648,6 +656,7 @@ class PlaylistServiceImpl {
       return this.channels;
     }
     const refreshTimestamp = Date.now();
+    this.channelsLoaded = true;
     this.allChannels = allChannels;
     this.epgSources = epgSources;
     // Customization preserves source names/groups on each channel, so cached

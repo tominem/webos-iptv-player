@@ -201,6 +201,25 @@ function hover(el: HTMLElement): void {
   el.dispatchEvent(new CustomEvent('nav:hover', { bubbles: true }));
 }
 
+describe('ChannelList.release', () => {
+  it('lets go of the group cache and empties its markup', () => {
+    list.render();
+    expect(channelItems().length).toBeGreaterThan(0);
+    list.release();
+    const internals = list as unknown as Record<string, unknown>;
+    expect(internals.groupEntriesChannels).toBeNull();
+    expect(internals.groupEntries).toEqual([]);
+    expect(container.children).toHaveLength(0);
+  });
+
+  it('draws again from scratch after a release', () => {
+    list.render();
+    list.release();
+    list.render();
+    expect(channelItems().length).toBeGreaterThan(0);
+  });
+});
+
 describe('ChannelList.render', () => {
   it('omits the live-preview toolbar when the setting is off', () => {
     list = new ChannelList(container, {
