@@ -33,6 +33,8 @@ export class SectionData {
   // Bumped by invalidate(), so a load that started under the old settings is discarded.
   private epoch = 0;
   private guideEpoch = 0;
+  // A view such as Settings reads the channel list while it is up, so it is not dropped under it.
+  private pinned = false;
 
   constructor(
     private readonly ops: SectionOps,
@@ -56,6 +58,15 @@ export class SectionData {
       }
       this.coolLive();
     });
+  }
+
+  // While pinned the heap cap does not free the channel list; unpinning judges it at once.
+  pin(pinned: boolean): void {
+    if (this.pinned === pinned) return;
+    this.pinned = pinned;
+    if (!pinned && this.active !== 'live' && this.liveState === 'warm') {
+      void this.run(async () => this.dropChannelsOverCap());
+    }
   }
 
   // Settles once the guide that entering live started has loaded (or failed).
@@ -124,6 +135,7 @@ export class SectionData {
   }
 
   private dropChannelsOverCap(): void {
+    if (this.pinned) return;
     const heap = this.ops.heapUsedBytes();
     if (heap === null || heap <= this.options.heapCapBytes) return;
     this.ops.dropChannels();

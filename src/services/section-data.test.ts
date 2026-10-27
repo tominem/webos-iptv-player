@@ -142,6 +142,48 @@ describe('SectionData', () => {
     expect(data.liveState).toBe('cold');
   });
 
+  describe('pinned for a view that reads the channel list', () => {
+    it('keeps the list past the heap cap while pinned, on leaving live and on the later check', async () => {
+      await data.enter('live');
+      data.pin(true);
+      ops.heap = 101;
+      await data.enter('home');
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(ops.dropChannels).not.toHaveBeenCalled();
+      expect(data.liveState).toBe('warm');
+    });
+
+    it('judges the heap when it is unpinned, and frees the list over the cap', async () => {
+      await data.enter('live');
+      data.pin(true);
+      await data.enter('home');
+      await vi.advanceTimersByTimeAsync(1000);
+      ops.heap = 101;
+      data.pin(false);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(ops.dropChannels).toHaveBeenCalledTimes(1);
+      expect(data.liveState).toBe('cold');
+    });
+
+    it('keeps the list on unpinning when the heap is under the cap, or live is the section', async () => {
+      await data.enter('live');
+      data.pin(true);
+      data.pin(true);
+      ops.heap = 101;
+      data.pin(false);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(ops.dropChannels).not.toHaveBeenCalled();
+      await data.enter('home');
+      await vi.advanceTimersByTimeAsync(1000);
+      await data.enter('live');
+      ops.heap = 50;
+      data.pin(true);
+      data.pin(false);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(ops.dropChannels).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('stays warm when the heap is unknown', async () => {
     ops.heap = null;
     await data.enter('live');

@@ -170,13 +170,13 @@ describe('Home', () => {
     expect(container.querySelectorAll('.home-card')).toHaveLength(CONFIG.HOME.RAIL_MAX);
   });
 
-  it('opens the focused section on select and on click', () => {
+  it('opens the focused section on select (by key) and on click (by pointer)', () => {
     home.open({ hasXtream: true, accountId: 'acc1' });
     home.handleAction('right');
     home.handleAction('select');
-    expect(onOpen).toHaveBeenLastCalledWith('movies');
+    expect(onOpen).toHaveBeenLastCalledWith('movies', 'key');
     click('[data-section="settings"]');
-    expect(onOpen).toHaveBeenLastCalledWith('settings');
+    expect(onOpen).toHaveBeenLastCalledWith('settings', 'pointer');
   });
 
   it('resumes a card on select and on click', () => {

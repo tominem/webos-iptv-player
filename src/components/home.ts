@@ -22,7 +22,7 @@ export interface HomeContext {
 }
 
 interface HomeHandlers {
-  onOpen: (section: HomeSection) => void;
+  onOpen: (section: HomeSection, via: 'key' | 'pointer') => void;
   onResume: (entry: ResumeEntry) => void;
   onBack: () => void;
 }
@@ -73,7 +73,7 @@ export class Home {
       const control = (event.target as HTMLElement).closest<HTMLElement>('[data-focusable]');
       if (!control) return;
       this.nav.focus(control, 'pointer');
-      this.activate(control);
+      this.activate(control, 'pointer');
     });
   }
 
@@ -102,15 +102,15 @@ export class Home {
     if (action === 'back') {
       this.handlers.onBack();
     } else if (action === 'select') {
-      if (this.nav.focused) this.activate(this.nav.focused);
+      if (this.nav.focused) this.activate(this.nav.focused, 'key');
     } else if (action === 'up' || action === 'down' || action === 'left' || action === 'right') {
       this.nav.move(action);
     }
   }
 
-  private activate(control: HTMLElement): void {
+  private activate(control: HTMLElement, via: 'key' | 'pointer'): void {
     if (control.dataset.section) {
-      this.handlers.onOpen(control.dataset.section as HomeSection);
+      this.handlers.onOpen(control.dataset.section as HomeSection, via);
       return;
     }
     this.handlers.onResume(this.entries[Number(control.dataset.index)]);

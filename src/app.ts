@@ -362,7 +362,7 @@ class App {
       heapRecheckMs: CONFIG.SECTIONS.HEAP_RECHECK_MS,
     });
     this.home = new Home(this.views.home, {
-      onOpen: (section) => this.openFromHome(section),
+      onOpen: (section, via) => this.openFromHome(section, via),
       onResume: (entry) => this.resumeFromHome(entry),
       onBack: () => this.backFromHome(),
     });
@@ -1162,6 +1162,8 @@ class App {
       ParentalControlService.endManagement();
       this.viewStack = ['settings'];
     }
+    // Settings and the screens opened from it read the channel list while they are up.
+    this.sectionData.pin(name === 'settings' || name === 'parental-controls' || name === 'reminders');
     this.historyDropdown?.close('view-change');
     this.livePreview?.beforeViewChange(name);
     if (name !== 'channels' && this.channelList.isEditing) this.channelList.exitEditMode();
@@ -1577,8 +1579,9 @@ class App {
     this.home.open(this.homeContext(), focus ?? (left === 'home' ? 'live' : left));
   }
 
-  private openFromHome(section: HomeSection): void {
-    this.enterSection(section, 'key');
+  // A tile opens its section the way it was picked: a click leaves the catalog dark until a key.
+  private openFromHome(section: HomeSection, via: 'key' | 'pointer'): void {
+    this.enterSection(section, via);
   }
 
   private resumeFromHome(entry: ResumeEntry): void {
@@ -1806,7 +1809,9 @@ class App {
   // A reminder on air needs the channel list to name its channel and tune it, and
   // another section may have released the list.
   private loadChannelsForOnAirReminder(): void {
-    if (this.reminderChannelLoad || !ReminderService.anyOnAir()) return;
+    // A list already in memory that is still not "loaded" (no playlist at all) is not asked for again.
+    if (this.reminderChannelLoad || !ReminderService.anyOnAir()
+        || this.sectionData.liveState !== 'cold') return;
     const done = (): void => { this.reminderChannelLoad = null; };
     this.reminderChannelLoad = this.sectionData.ensureChannels()
       .then(() => { done(); this.scanReminders(); })

@@ -19,7 +19,8 @@ async function seedXtream(page: Page, extra: Record<string, string> = {}): Promi
       { id: 'x1', name: 'X Account', url: 'http://host.example.com:8080',
         source: 'xtream', xtream: { username: 'u', password: 'p' } },
     ]));
-    for (const [key, value] of Object.entries(values)) localStorage.setItem(key, value);
+    // Object.entries is newer than the Chromium 53 the simulation project models.
+    Object.keys(values).forEach((key) => localStorage.setItem(key, values[key]));
   }, extra);
 }
 
@@ -58,6 +59,9 @@ test('Live loads its channels on demand and Back returns home', async ({ page })
   await expect(page.locator('.tab-bar')).toBeVisible();
   await expect(toast(page, '2 channels loaded')).toBeVisible();
 
+  // Back once moves to the search icon, twice in a short while goes home.
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.tab-bar-item.search-icon.focused')).toHaveCount(1);
   await page.keyboard.press('Escape');
   await expect(page.locator('#view-home')).toBeVisible();
   await expect(page.locator('.tab-bar')).toBeHidden();
@@ -256,4 +260,18 @@ test('Search opened from Settings, which Home opened, looks through the channels
   await enterTab(page, 'search');
   await page.locator('.tab-bar-search-input').fill('one');
   await expect(page.locator('#view-search .search-channel-row').first()).toContainText('Channel One');
+});
+
+test('a reminder on air with no playlist configured does not freeze the first run', async ({ page }) => {
+  await page.addInitScript((key) => {
+    const now = Date.now();
+    localStorage.setItem('iptv_reminders', JSON.stringify([
+      { channelKey: key, channelName: 'Channel One', title: 'Alpha', startMs: now - 1000, stopMs: now + 3_600_000 },
+    ]));
+  }, channelKey('http://streams.example.com/one.m3u8'));
+  await page.goto('/?start=live');
+
+  await expect(page.locator('#view-settings')).toBeVisible();
+  // The page still answers: a loop in the reminder scan would hold it.
+  expect(await page.evaluate(() => 1 + 1)).toBe(2);
 });
