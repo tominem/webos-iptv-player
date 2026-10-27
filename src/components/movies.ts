@@ -6,6 +6,7 @@ import { loadVodCategories, loadVodStreams, loadVodInfo } from '../services/xtre
 import { xtreamVodUrl } from '../utils/xtream-url';
 import { CatalogView, type CollectionKind, type CollectionEntry } from './catalog-view';
 import { PLAY_ICON, REMOVE_ICON, TRAILER_ICON, watchlistIcon } from './icons';
+import { ratingBadge } from './rating-badge';
 import { TrailerOverlay } from './trailer-overlay';
 import { showToast } from './toast';
 import { t, tp } from '../i18n';
@@ -75,7 +76,7 @@ export class Movies extends CatalogView<VodCategory, VodItem> {
   private resumeToVod(streamId: string): VodItem | null {
     const r = this.resume.find((e) => e.itemId === streamId);
     if (!r) return null;
-    return { accountId: r.accountId, streamId: r.itemId, name: r.name, poster: r.poster, rating: '', categoryId: r.categoryId ?? '', containerExtension: r.ext };
+    return { accountId: r.accountId, streamId: r.itemId, name: r.name, poster: r.poster, rating: r.rating ?? '', categoryId: r.categoryId ?? '', containerExtension: r.ext };
   }
 
   protected collectionEntries(kind: CollectionKind): CollectionEntry[] {
@@ -104,7 +105,7 @@ export class Movies extends CatalogView<VodCategory, VodItem> {
            data-item-id="${vod.streamId}" data-category-id="${vod.categoryId}"
            data-watchlist-item="${vod.streamId}">
         <div class="catalog-poster-wrap">${this.posterCell(vod.name, vod.poster)}${
-          this.itemLockBadge(vod.categoryId, vod.streamId)}${this.removeMark(managing, `w:${vod.streamId}`)}</div>
+          this.itemLockBadge(vod.categoryId, vod.streamId)}${ratingBadge(vod.rating)}${this.removeMark(managing, `w:${vod.streamId}`)}</div>
         <div class="catalog-tile-name">${vod.name}</div>
       </div>
     `;
@@ -211,6 +212,7 @@ export class Movies extends CatalogView<VodCategory, VodItem> {
       kind: 'vod',
       categoryId: vod.categoryId,
       resumeSecs: resume && saved ? saved.position : 0,
+      rating: vod.rating,
       subtitles: this.currentInfo?.subtitles ?? [],
       watchlistQueue: this.openedFromWatchlist ? this.movieWatchlistQueue(vod.streamId) : undefined,
       searchMeta: {
@@ -236,6 +238,7 @@ export class Movies extends CatalogView<VodCategory, VodItem> {
         kind: 'vod',
         categoryId: vod.categoryId,
         subtitles: [],
+        rating: vod.rating,
       };
     });
   }

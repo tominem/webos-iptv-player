@@ -521,6 +521,27 @@ describe('Movies browse + grid', () => {
     expect(container.textContent).toContain('Continue Watching');
   });
 
+  it('shows the rating kept with a resumed movie on the Continue rail, and passes it on when played', async () => {
+    const { StorageService } = await import('../services/storage-service');
+    (StorageService.getResumeList as ReturnType<typeof vi.fn>).mockReturnValue([
+      { accountId: 'x1', kind: 'vod', itemId: '10', name: 'Movie One', poster: '', ext: 'mp4', position: 100, duration: 6000, updatedAt: 1, rating: '8' },
+      { accountId: 'x1', kind: 'vod', itemId: '11', name: 'Movie Two', poster: '', ext: 'mp4', position: 100, duration: 6000, updatedAt: 1 },
+    ]);
+    catalogMock.loadVodInfo.mockResolvedValue(null);
+    const { view, handlers } = await openWith();
+    const badge = (id: string) => container.querySelector(`[data-rail-key="continue"] .catalog-tile[data-item-id="${id}"] .catalog-rating`);
+    expect(badge('10')?.textContent).toContain('8');
+    expect(badge('11')).toBeNull();
+    container.querySelector<HTMLElement>('.catalog-tile[data-item-id="10"]')!
+      .dispatchEvent(new CustomEvent('nav:hover', { bubbles: true }));
+    pressKey(view, 'select');
+    await Promise.resolve();
+    container.querySelector<HTMLElement>('[data-action="play"]')!
+      .dispatchEvent(new CustomEvent('nav:hover', { bubbles: true }));
+    pressKey(view, 'select');
+    expect(handlers.onPlayVod).toHaveBeenCalledWith(expect.objectContaining({ itemId: '10', rating: '8' }));
+  });
+
   it('shows a Watchlist rail from stored movie snapshots', async () => {
     watchlistState.entries = [{
       accountId: 'x1', kind: 'vod', itemId: '42', name: 'Saved Movie', poster: '',
@@ -538,6 +559,23 @@ describe('Movies browse + grid', () => {
     view.handleAction('select');
     await Promise.resolve(); await Promise.resolve();
     expect(container.querySelector('.movies-detail')?.textContent).toContain('Saved Movie');
+  });
+
+  it('shows the rating on Watchlist tiles, and nothing for an unrated title', async () => {
+    watchlistState.entries = [
+      {
+        accountId: 'x1', kind: 'vod', itemId: '42', name: 'Rated Movie', poster: '',
+        rating: '7', categoryId: '9', containerExtension: 'mp4', addedAt: 2,
+      },
+      {
+        accountId: 'x1', kind: 'vod', itemId: '43', name: 'Unrated Movie', poster: '',
+        rating: '', categoryId: '9', containerExtension: 'mp4', addedAt: 1,
+      },
+    ];
+    await openWith();
+    const badge = (id: string) => container.querySelector(`[data-watchlist-item="${id}"] .catalog-rating`);
+    expect(badge('42')?.textContent).toContain('7');
+    expect(badge('43')).toBeNull();
   });
 
   it('queues only the movies after one launched from the Watchlist rail', async () => {

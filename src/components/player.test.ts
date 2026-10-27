@@ -1766,6 +1766,16 @@ describe('Player VOD mode', () => {
     expect(info).toContain('HDR');
   });
 
+  it('keeps the movie\'s rating with the resume point', () => {
+    const video = fakeVideo(3600);
+    player.init(video);
+    player.playVod(req({ rating: '8' }));
+    video.dispatchEvent(new Event('loadedmetadata'));
+    video.currentTime = 1200;
+    player.handleAction('back');
+    expect(StorageService.setResume).toHaveBeenCalledWith(expect.objectContaining({ itemId: '10', rating: '8' }));
+  });
+
   it('saves the resume point and calls onBack on Back', () => {
     const video = fakeVideo(3600);
     player.init(video);

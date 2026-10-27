@@ -767,6 +767,7 @@ export class Player {
       episodeHistory: v.episodeHistory,
       watchlistOwner: v.watchlistOwner,
       categoryId: v.categoryId,
+      rating: v.rating,
     });
   }
 

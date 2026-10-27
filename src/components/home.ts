@@ -40,7 +40,7 @@ export function vodFromResume(entry: ResumeEntry): VodItem {
     streamId: entry.itemId,
     name: entry.name,
     poster: entry.poster,
-    rating: '',
+    rating: entry.rating ?? '',
     categoryId: entry.categoryId ?? '',
     containerExtension: entry.ext,
   };

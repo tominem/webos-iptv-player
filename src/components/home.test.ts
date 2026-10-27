@@ -268,6 +268,11 @@ describe('vodFromResume', () => {
     });
   });
 
+  it('carries the rating saved with the resume point', () => {
+    expect(vodFromResume(entry({ rating: '7' })).rating).toBe('7');
+    expect(vodFromResume(entry()).rating).toBe('');
+  });
+
   it('leaves the category empty when none was saved', () => {
     expect(vodFromResume(entry()).categoryId).toBe('');
   });

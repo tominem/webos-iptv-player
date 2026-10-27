@@ -618,6 +618,8 @@ export interface ResumeEntry {
   watchlistOwner?: WatchlistOwner;
   /** The episodes before this one, nearest first. */
   episodeHistory?: VodQueueItem[];
+  /** The provider's rating of a movie, for the badge on its tile. */
+  rating?: string;
   /** Catalog category at save time, so parental rules apply from the Continue rail. */
   categoryId?: string;
 }
@@ -666,6 +668,8 @@ export interface VodQueueItem {
   subtitles: SidecarSubtitle[];
   searchMeta?: SearchMeta;
   watchlistOwner?: WatchlistOwner;
+  /** A movie's rating, kept with its resume point. */
+  rating?: string;
 }
 
 export interface WatchlistOwner {
