@@ -382,6 +382,14 @@ const M3U_SCREENS: Screen[] = [
     name: 'search-empty',
     budget: 0,
     go: async (p) => {
+      // The number typed in the step before commits to a channel that does not exist and
+      // opens the player; wait for it, and come back to the list.
+      await expect(p.locator('.number-entry.visible')).toHaveCount(0);
+      for (let i = 0; i < 3 && !(await p.locator('#view-channels').isVisible()); i++) {
+        await p.keyboard.press('Escape');
+        await p.waitForTimeout(150);
+      }
+      await expect(p.locator('#view-channels')).toBeVisible();
       await enterTab(p, 'search');
       await p.locator('.tab-bar-search-input').fill('zzqqxx');
       await expect(p.locator('#view-search')).toBeVisible();
@@ -407,17 +415,18 @@ const M3U_SCREENS: Screen[] = [
   },
   {
     // A past program only offers to resume when a checkpoint exists for it;
-    // prepareM3U seeds one. After the pointer entry the first RIGHT only
-    // shows the focus; the next enters the program column on program 0,
-    // which is the past show, and ENTER activates it.
+    // prepareM3U seeds one. The Guide opens with its key and the ring on the
+    // channel, so RIGHT enters the program column on program 0, which is
+    // the past show, and ENTER activates it.
     name: 'catchup-resume',
     budget: 0,
     go: async (p) => {
       await p.keyboard.press('Escape');
       await p.keyboard.press('Escape');
       await enterTab(p, 'epg');
+      // The Guide opens on the channel last played; the checkpoint belongs to Channel One.
+      await p.locator('#view-epg .epg-channel-item', { hasText: 'Channel One' }).click();
       await expect(p.locator('#epg-programmes .epg-programme-item').first()).toBeVisible();
-      await p.keyboard.press('ArrowRight');
       await p.keyboard.press('ArrowRight');
       await p.keyboard.press('Enter');
       await expect(p.locator('.catchup-resume-prompt')).toBeVisible();
@@ -692,7 +701,6 @@ const XTREAM_SCREENS: Screen[] = [
         },
         updatedAt: Date.now(),
       }]);
-      await expect(p.locator('.tab-bar-item[data-section="movies"]')).toBeVisible();
       await enterTab(p, 'movies');
       await expect(p.locator('#view-movies .catalog-tile').first()).toBeVisible();
       await expect(p.locator('#view-movies .catalog-rail-title').first())
@@ -914,7 +922,8 @@ async function walk(
 
 test('the webOS 4 fallbacks lay out where the modern engine does, with an M3U playlist only', async ({ page, browser }) => {
   test.skip(isChromium53(), 'this test drives both engines itself, so it runs once');
-  test.slow();
+  // Reaching a section goes through the home screen, so the walk takes longer.
+  test.setTimeout(150_000);
   await walk(page, browser, prepareM3U, M3U_SCREENS);
 });
 
@@ -922,6 +931,6 @@ test('the webOS 4 fallbacks lay out where the modern engine does, with an M3U pl
 // tab bar — a second tab-bar layout, and the one that exposed its missing gap.
 test('the webOS 4 fallbacks lay out where the modern engine does, with an Xtream account', async ({ page, browser }) => {
   test.skip(isChromium53(), 'this test drives both engines itself, so it runs once');
-  test.slow();
+  test.setTimeout(150_000);
   await walk(page, browser, prepareXtream, XTREAM_SCREENS);
 });

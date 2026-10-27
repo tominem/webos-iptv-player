@@ -33,7 +33,7 @@ test('expands localized channel navigation without clipping', async ({ page }) =
   await page.goto('/?pseudo=1&start=live');
 
   await expect(page.locator('html')).toHaveAttribute('lang', 'en-XA');
-  await expect(page.locator('.tab-bar-item[data-section="live"]')).toContainText('[!!');
+  await expect(page.locator('.tab-bar-label[data-section="live"]')).toContainText('[!!');
   expect(await textOverflow(page, [
     '.tab-bar-item',
     '.channel-count',

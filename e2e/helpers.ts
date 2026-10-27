@@ -102,6 +102,8 @@ const BACK = 461;
 
 async function reachSection(page: Page, section: string): Promise<void> {
   if (section === 'epg') {
+    // Keys are held while a section loads behind the splash.
+    await expect(page.locator('#view-loading')).toBeHidden();
     await page.evaluate((code) => document.dispatchEvent(
       new KeyboardEvent('keydown', { keyCode: code, bubbles: true })), RED);
     await expect(page.locator('#view-epg')).toBeVisible();

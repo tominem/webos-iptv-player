@@ -56,7 +56,9 @@ async function seedWatchlistCatalog(page: Page, entries: SeedWatchlistEntry[] = 
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
 
     if (action === 'get_vod_categories' || action === 'get_series_categories') {
-      return json([{ category_id: '1', category_name: 'Category One' }]);
+      // Series hides a category the provider repeats from Movies, so the two are named apart.
+      const name = action === 'get_vod_categories' ? 'Category One' : 'Series Category One';
+      return json([{ category_id: '1', category_name: name }]);
     }
     if (action === 'get_vod_streams') {
       return json([

@@ -139,7 +139,11 @@ test('Back walks Series detail -> browse -> Home instead of ejecting', async ({ 
   await expect(page.locator('#view-series .catalog-rail-title')).toContainText('Cat A');
   await expect(page.locator('#view-channels')).toBeHidden();
 
-  // Second Back from the browse top level returns to the home screen.
+  // Back from the browse top level moves to the search icon, and a second one soon
+  // after returns to the home screen.
+  await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keydown', { keyCode: 461, bubbles: true })));
+  await expect(page.locator('.tab-bar-item.search-icon.focused')).toHaveCount(1);
+  await expect(page.locator('#view-series')).toBeVisible();
   await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keydown', { keyCode: 461, bubbles: true })));
   await expect(page.locator('#view-home')).toBeVisible();
 });
@@ -206,7 +210,7 @@ test('Down from the tab bar resumes the Series detail Up left', async ({ page })
   for (let i = 0; i < 8 && !(await page.locator('.tab-bar-item.focused').count()); i++) {
     await page.keyboard.press('ArrowUp');
   }
-  await expect(page.locator('.tab-bar-item[data-section="series"].focused')).toHaveCount(1);
+  await expect(page.locator('.tab-bar-item.search-icon.focused')).toHaveCount(1);
   await page.keyboard.press('ArrowDown');
   await expect(season).toBeVisible();
   await expect(page.locator('#view-series .focused')).toHaveCount(1);

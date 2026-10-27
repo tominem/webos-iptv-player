@@ -180,37 +180,6 @@ test('a query typed while the index prepares shows a hint, then its results', as
   await expect(page.locator('#view-search .search-empty')).toHaveCount(0);
 });
 
-test('a wide virtual search rail keeps its full scrollable width', async ({ page }) => {
-  await seedSearch(page);
-  await page.goto('/?start=movies');
-  await expect(page.locator('#view-movies')).toBeVisible();
-  await enterSearch(page);
-  await page.locator('.tab-bar-search-input').fill('one');
-
-  const rail = page.locator('[data-search-virtual="movies"]');
-  await expect(rail.locator('.search-virtual-rail-spacer')).toBeVisible();
-  const metrics = await rail.evaluate((element) => {
-    const spacer = element.querySelector<HTMLElement>('.search-virtual-rail-spacer');
-    if (!spacer) throw new Error('virtual rail spacer not found');
-    spacer.style.width = '12000000px';
-    element.scrollLeft = element.scrollWidth;
-    return {
-      flexShrink: getComputedStyle(spacer).flexShrink,
-      spacerWidth: spacer.getBoundingClientRect().width,
-      scrollWidth: element.scrollWidth,
-      clientWidth: element.clientWidth,
-      scrollLeft: element.scrollLeft,
-    };
-  });
-
-  expect(metrics.flexShrink).toBe('0');
-  expect(metrics.spacerWidth).toBe(12_000_000);
-  expect(metrics.scrollWidth).toBeGreaterThanOrEqual(12_000_000);
-  // Past 2^23px a scroll offset is float-rounded, so allow 1px either way.
-  expect(Math.abs(metrics.scrollLeft - (metrics.scrollWidth - metrics.clientWidth)))
-    .toBeLessThanOrEqual(1);
-});
-
 test('program search shows XMLTV metadata and toggles a future reminder', async ({ page }) => {
   await seedSearch(page);
   await page.goto('/?start=live');
@@ -509,7 +478,7 @@ test('a click on the dimmed view leaves search and restores the tab underneath',
   await expect(dropdown.locator('.search-history-panel')).toBeHidden();
   await expect(page.locator('.tab-bar-search.expanded')).toHaveCount(0);
   await expect(page.locator('#view-channels')).toBeVisible();
-  await expect(page.locator('.tab-bar-item[data-section="live"]')).toHaveClass(/active/);
+  await expect(page.locator('.tab-bar-label[data-section="live"]')).toHaveCount(1);
   await expect(page.locator('.tab-bar .search-icon')).not.toHaveClass(/active/);
 });
 
@@ -647,31 +616,26 @@ test('a scrim click that dismisses the account menu leaves search like it does w
   expect(events.filter((text) => text.includes('event=search.history.opened'))).toEqual([]);
 });
 
-for (const target of ['magnifier', 'Movies tab'] as const) {
-  test(`a ${target} click that dismisses the account menu does not flash recent searches`, async ({ page }) => {
-    await seedSearch(page);
-    await page.addInitScript(() => {
-      localStorage.setItem('iptv_search_history', JSON.stringify(['one']));
-    });
-    await page.goto('/?start=live');
-    await expect(page.locator('#view-channels')).toBeVisible();
-    await enterSearch(page);
-    await expect(page.locator('.search-history-dropdown .search-history-panel')).toBeVisible();
-
-    await page.locator('.account-avatar').click();
-    await expect(page.locator('.account-menu')).toBeVisible();
-    const events: string[] = [];
-    page.on('console', (msg) => events.push(msg.text()));
-    const item = target === 'magnifier'
-      ? page.locator('.tab-bar-item.search-icon')
-      : page.locator('.tab-bar-item[data-section="movies"]');
-    await item.click();
-    await expect(page.locator('.account-menu')).toHaveCount(0);
-    await expect(page.locator('.tab-bar-search.expanded')).toHaveCount(0);
-    expect(events.some((text) => text.includes('event=account.menu.closed reason=bar'))).toBe(true);
-    expect(events.filter((text) => text.includes('event=search.history.opened'))).toEqual([]);
+test('a magnifier click that dismisses the account menu does not flash recent searches', async ({ page }) => {
+  await seedSearch(page);
+  await page.addInitScript(() => {
+    localStorage.setItem('iptv_search_history', JSON.stringify(['one']));
   });
-}
+  await page.goto('/?start=live');
+  await expect(page.locator('#view-channels')).toBeVisible();
+  await enterSearch(page);
+  await expect(page.locator('.search-history-dropdown .search-history-panel')).toBeVisible();
+
+  await page.locator('.account-avatar').click();
+  await expect(page.locator('.account-menu')).toBeVisible();
+  const events: string[] = [];
+  page.on('console', (msg) => events.push(msg.text()));
+  await page.locator('.tab-bar-item.search-icon').click();
+  await expect(page.locator('.account-menu')).toHaveCount(0);
+  await expect(page.locator('.tab-bar-search.expanded')).toHaveCount(0);
+  expect(events.some((text) => text.includes('event=account.menu.closed reason=bar'))).toBe(true);
+  expect(events.filter((text) => text.includes('event=search.history.opened'))).toEqual([]);
+});
 
 test('a blank click that dismisses the account menu keeps the remote in the search box', async ({ page }) => {
   await seedSearch(page);

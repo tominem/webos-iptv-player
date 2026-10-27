@@ -64,8 +64,12 @@ test('live playback retries the current channel before switching', async ({ page
   await attempts.locator('.dropdown-trigger').click();
   await attempts.locator('[data-dropdown-value="1"]').click();
   await page.locator('#save-settings').click();
+  // Settings was opened from the home screen, so it returns there.
+  await expect(page.locator('#view-home')).toBeVisible();
+  await enterTab(page, 'live');
   await expect(page.locator('#view-channels')).toBeVisible();
-  await page.keyboard.press('Enter');
+  // The tile click leaves the keys parked, so the first row is picked with a click.
+  await page.locator('#view-channels .channel-item').first().click();
   await expect(page.locator('.osd-channel-name')).toHaveText('Channel One');
 
   const video = page.locator('#video-player');

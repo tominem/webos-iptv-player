@@ -266,7 +266,11 @@ test('Back walks Movies detail -> browse -> Home instead of ejecting', async ({ 
   await expect(page.locator('#view-movies .catalog-browse')).toBeVisible();
   await expect(page.locator('#view-channels')).toBeHidden();
 
-  // Second Back from the browse top level returns to the home screen.
+  // Back from the browse top level moves to the search icon, and a second one soon
+  // after returns to the home screen.
+  await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keydown', { keyCode: 461, bubbles: true })));
+  await expect(page.locator('.tab-bar-item.search-icon.focused')).toHaveCount(1);
+  await expect(page.locator('#view-movies')).toBeVisible();
   await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keydown', { keyCode: 461, bubbles: true })));
   await expect(page.locator('#view-home')).toBeVisible();
 });
@@ -596,7 +600,7 @@ async function upToTabBar(page: Page): Promise<void> {
   for (let i = 0; i < 8 && !(await page.locator('.tab-bar-item.focused').count()); i++) {
     await page.keyboard.press('ArrowUp');
   }
-  await expect(page.locator('.tab-bar-item[data-section="movies"].focused')).toHaveCount(1);
+  await expect(page.locator('.tab-bar-item.search-icon.focused')).toHaveCount(1);
 }
 
 async function openCategoryGrid(page: Page): Promise<void> {
@@ -664,7 +668,7 @@ test.describe('Down from the tab bar resumes Movies as Up left it', () => {
     await expect(page.locator('.tab-bar-search.expanded')).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.locator('.tab-bar-search.expanded')).toHaveCount(0);
-    await expect(page.locator('.tab-bar-item[data-section="movies"].focused')).toHaveCount(1);
+    await expect(page.locator('.tab-bar-item.search-icon.focused')).toHaveCount(1);
     await page.keyboard.press('ArrowDown');
     await expect(page.locator('#view-movies .catalog-grid-title')).toHaveText('Cat A');
     await expect(gridFocus(page)).toHaveAttribute('data-item-id', '101');
@@ -676,15 +680,7 @@ async function openAccountMenuOverMovies(page: Page): Promise<void> {
   await routeLiveManifest(page);
   await page.goto('/?start=live');
   await expect(page.locator('#view-channels')).toBeVisible();
-  // Reach Movies from the tab bar with keys alone.
-  await page.keyboard.press('ArrowLeft');
-  for (let i = 0; i < 8 && !(await page.locator('.tab-bar-item.focused').count()); i++) {
-    await page.keyboard.press('ArrowUp');
-  }
-  for (let i = 0; i < 6 && !(await page.locator('.tab-bar-item[data-section="movies"].focused').count()); i++) {
-    await page.keyboard.press('ArrowRight');
-  }
-  await expect(page.locator('.tab-bar-item[data-section="movies"].focused')).toHaveCount(1);
+  await enterTab(page, 'movies');
   await expect(page.locator('#view-movies .catalog-tile').first()).toBeVisible();
   const avatar = (await page.locator('.account-avatar').boundingBox())!;
   await page.mouse.click(avatar.x + avatar.width / 2, avatar.y + avatar.height / 2);

@@ -313,9 +313,8 @@ test('Down from the tab bar resumes the Guide on the day and channel Up left', a
   await page.goto('/?start=live');
   await expect(page.locator('#view-channels .channel-item').first()).toHaveClass(/\bfocused\b/);
 
-  await page.keyboard.press('ArrowUp');
-  await page.keyboard.press('ArrowRight');
-  await page.keyboard.press('ArrowDown');
+  // The Guide opens with its key, with the ring on its first channel.
+  await enterTab(page, 'epg');
   const channel = page.locator('#view-epg .epg-channel-item.selected');
   await expect(channel).toHaveClass(/\bfocused\b/);
   await page.keyboard.press('ArrowDown');
@@ -331,7 +330,7 @@ test('Down from the tab bar resumes the Guide on the day and channel Up left', a
   const label = await date.textContent();
 
   await page.keyboard.press('ArrowUp');
-  await expect(page.locator('.tab-bar-item[data-section="epg"].focused')).toHaveCount(1);
+  await expect(page.locator('.tab-bar-item.search-icon.focused')).toHaveCount(1);
   await page.keyboard.press('ArrowDown');
   await expect(date).toHaveText(label ?? '');
   await expect(channel).toHaveAttribute('data-channel-idx', '1');
@@ -360,9 +359,8 @@ test('Right on a channel with no programmes keeps the ring on the channel', asyn
   await page.goto('/?start=live');
   await expect(page.locator('#view-channels .channel-item').first()).toHaveClass(/\bfocused\b/);
 
-  await page.keyboard.press('ArrowUp');
-  await page.keyboard.press('ArrowRight');
-  await page.keyboard.press('ArrowDown');
+  // The Guide opens with its key, with the ring on its first channel.
+  await enterTab(page, 'epg');
   const channel = page.locator('#view-epg .epg-channel-item.selected');
   await expect(channel).toHaveClass(/\bfocused\b/);
   await page.keyboard.press('ArrowDown');
@@ -406,9 +404,8 @@ test.describe('Guide pointer and keys', () => {
     });
     await page.goto('/?start=live');
     await expect(page.locator('#view-channels .channel-item').first()).toHaveClass(/\bfocused\b/);
-    await page.keyboard.press('ArrowUp');
-    await page.keyboard.press('ArrowRight');
-    await page.keyboard.press('ArrowDown');
+    // The Guide opens with its key, with the ring on its first channel.
+    await enterTab(page, 'epg');
     await expect(page.locator('#view-epg .epg-channel-item.selected')).toHaveClass(/\bfocused\b/);
   }
 
@@ -473,7 +470,6 @@ test.describe('Guide pointer and keys', () => {
 
   for (const [name, press] of [
     ['Down', (page: Page) => page.keyboard.press('ArrowDown')],
-    ['OK', (page: Page) => page.keyboard.press('Enter')],
     ['Back', (page: Page) => page.evaluate(() =>
       document.dispatchEvent(new KeyboardEvent('keydown', { keyCode: 461, bubbles: true })))],
   ] as const) {
@@ -503,7 +499,7 @@ test.describe('Guide pointer and keys', () => {
       await page.locator('.tab-bar-item[data-section="search"]').click();
       await expect(page.locator('.tab-bar-search-input')).toBeFocused();
       await page.keyboard.press('Escape');
-      await expect(page.locator('.tab-bar-item[data-section="epg"].focused')).toHaveCount(1);
+      await expect(page.locator('.tab-bar-item.search-icon.focused')).toHaveCount(1);
       await expect(page.locator('#view-epg')).toBeVisible();
 
       await press(page);
@@ -577,11 +573,10 @@ test.describe('Guide pointer and keys', () => {
     await page.keyboard.press('ArrowLeft');
     await expect(page.locator('#view-epg .epg-group-option.focused')).toHaveCount(1);
 
-    await page.locator('.tab-bar-item[data-section="live"]').click();
+    await enterTab(page, 'live');
     await expect(page.locator('#view-channels')).toBeVisible();
-    await page.locator('.tab-bar-item[data-section="epg"]').click();
+    await enterTab(page, 'epg');
     await expect(page.locator('#view-epg')).toBeVisible();
-    await page.keyboard.press('ArrowDown');
 
     await expect(page.locator('#view-epg .epg-group-menu')).toHaveCount(0);
     await expect(page.locator('#view-epg .epg-channel-item.selected')).toHaveClass(/\bfocused\b/);

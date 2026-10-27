@@ -44,7 +44,12 @@ export async function seedXtream(page: Page, opts: { catalog?: 'large' } = {}): 
       return json({ info: { plot: 'A plot.', duration_secs: 3600,
         subtitles: [{ id: '1', title: 'Sub 1', language: 'l1', url: 'http://host/sub1.srt' }] } });
     }
-    if (url.includes('get_series_categories')) return json([{ category_id: '2', category_name: 'Cat B' }]);
+    // The provider repeats movie categories among the series ones, and Series hides
+    // those, so a large movie catalog keeps its series category apart.
+    const seriesCategory = large
+      ? { category_id: '20', category_name: 'Series Cat' }
+      : { category_id: '2', category_name: 'Cat B' };
+    if (url.includes('get_series_categories')) return json([seriesCategory]);
     if (url.includes('get_series_info')) {
       return json({
         info: { name: 'Series One', plot: 'A series plot.' },
@@ -53,7 +58,7 @@ export async function seedXtream(page: Page, opts: { catalog?: 'large' } = {}): 
       });
     }
     if (url.includes('get_series')) {
-      return json([{ series_id: 20, name: 'Series One', cover: '', category_id: '2' }]);
+      return json([{ series_id: 20, name: 'Series One', cover: '', category_id: seriesCategory.category_id }]);
     }
     return json({});
   });

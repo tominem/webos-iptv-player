@@ -178,6 +178,9 @@ test('a source added after turning on stays locked until the manager opens it', 
       .dispatchEvent(new CustomEvent('nav:hover', { bubbles: true }));
   });
   await page.keyboard.press('Enter');
+  // Settings was opened from the home screen, so Save returns there.
+  await expect(page.locator('#view-home')).toBeVisible();
+  await enterTab(page, 'live');
 
   const prompt = page.locator('.parental-pin-prompt');
   const channel = (name: string) =>
@@ -243,6 +246,8 @@ test('channels hidden from the list are locked with their source', async ({ page
   await page.locator('[data-settings-target="sources"]').click();
   await page.locator('#show-hidden [data-value="on"]').click();
   await page.locator('#save-settings').click();
+  await expect(page.locator('#view-home')).toBeVisible();
+  await enterTab(page, 'live');
   const hidden = page.locator('.channel-main .channel-item').filter({ hasText: 'Channel Two' });
   await expect(hidden).toBeVisible();
   await hidden.click();
@@ -266,6 +271,9 @@ test('pointing a reviewed source at a new address locks it again', async ({ page
       .dispatchEvent(new CustomEvent('nav:hover', { bubbles: true }));
   });
   await page.keyboard.press('Enter');
+  // Settings was opened from the home screen, so Save returns there.
+  await expect(page.locator('#view-home')).toBeVisible();
+  await enterTab(page, 'live');
 
   const prompt = page.locator('.parental-pin-prompt');
   const channel = page.locator('.channel-main .channel-item').filter({ hasText: 'Channel Three' });

@@ -511,7 +511,7 @@ test('Up at the top of the sidebar goes to the tab bar, not the scrolled list', 
   }
   await expect(page.locator('[data-edit-channels]')).toHaveClass(/\bfocused\b/);
   await page.keyboard.press('ArrowUp');
-  await expect(page.locator('.tab-bar-item[data-section="live"].focused')).toHaveCount(1);
+  await expect(page.locator('.tab-bar-item.search-icon.focused')).toHaveCount(1);
   await expect(page.locator('#view-channels .focused')).toHaveCount(0);
 
   // Edit mode has no edit button: the top group hands off the same way.
@@ -524,7 +524,7 @@ test('Up at the top of the sidebar goes to the tab bar, not the scrolled list', 
   }
   await expect(sidebarRing).toHaveAttribute('data-group-position', '0');
   await page.keyboard.press('ArrowUp');
-  await expect(page.locator('.tab-bar-item[data-section="live"].focused')).toHaveCount(1);
+  await expect(page.locator('.tab-bar-item.search-icon.focused')).toHaveCount(1);
   await expect(page.locator('#view-channels .focused')).toHaveCount(0);
 });
 
@@ -976,7 +976,7 @@ test('Down from the tab bar resumes in view after the list scrolled meanwhile', 
   if (!list) throw new Error('no layout');
 
   await page.keyboard.press('ArrowUp');
-  await expect(page.locator('.tab-bar-item[data-section="live"].focused')).toHaveCount(1);
+  await expect(page.locator('.tab-bar-item.search-icon.focused')).toHaveCount(1);
   await main.evaluate((el) => { el.scrollTop = 1500; });
   await settleVirtualScroll(page);
 
@@ -989,7 +989,7 @@ test('Down from the tab bar resumes in view after the list scrolled meanwhile', 
   expect(rowInView(box, list)).toBe(true);
 });
 
-test('the Live tab clicked from another section shows the far channel that is playing', async ({ page }) => {
+test('the Live tile clicked from another section shows the far channel that is playing', async ({ page }) => {
   const lines = ['#EXTM3U'];
   for (let index = 1; index <= 200; index++) {
     lines.push(`#EXTINF:-1 group-title="Group",Channel ${String(index)}`, `http://host/${String(index)}.m3u8`);
@@ -1014,7 +1014,6 @@ test('the Live tab clicked from another section shows the far channel that is pl
 
   const playing = page.locator('.channel-main .channel-item.playing');
   await expect(playing).toContainText('Channel 150');
-  await expect(playing).toHaveClass(/focused/);
   const list = page.locator('.channel-main');
   await expect.poll(async () => {
     const [r, l] = await Promise.all([playing.boundingBox(), list.boundingBox()]);

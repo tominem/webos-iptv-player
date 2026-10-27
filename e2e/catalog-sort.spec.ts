@@ -14,8 +14,10 @@ async function seedCatalog(page: Page): Promise<void> {
     const action = url.searchParams.get('action');
     let body: unknown = {};
     if (action === 'get_vod_categories' || action === 'get_series_categories') {
+      // Series hides a category the provider repeats from Movies, so the two are named apart.
+      const kind = action === 'get_vod_categories' ? 'Category' : 'Series category';
       body = Array.from({ length: 8 }, (_, i) => ({
-        category_id: String(i + 1), category_name: `Category ${i + 1}`,
+        category_id: String(i + 1), category_name: `${kind} ${i + 1}`,
       }));
     } else if (action === 'get_vod_streams' || action === 'get_series') {
       body = Array.from({ length: 50 }, (_, i) => {

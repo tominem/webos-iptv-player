@@ -58,6 +58,9 @@ test('disabling every M3U source hides channels until the source is enabled agai
 
   await sourceToggle.click();
   await page.locator('#save-settings').click();
+  // Settings was opened from the home screen; its tiles follow the enabled sources.
+  await expect(page.locator('#view-home')).toBeVisible();
+  await enterTab(page, 'live');
 
   await expect(page.locator('#view-channels')).toBeVisible();
   await expect(page.locator('.channel-main .channel-item')).toHaveCount(0);
@@ -71,6 +74,9 @@ test('disabling every M3U source hides channels until the source is enabled agai
   await enterTab(page, 'settings');
   await page.locator('#playlist-entries .source-toggle').click();
   await page.locator('#save-settings').click();
+  // Settings was opened from the home screen; its tiles follow the enabled sources.
+  await expect(page.locator('#view-home')).toBeVisible();
+  await enterTab(page, 'live');
 
   await expect(page.locator('#view-channels')).toBeVisible();
   await expect(page.locator('.channel-main .channel-item')).toHaveCount(2);
@@ -109,25 +115,28 @@ test('disabling the only Xtream account hides its sections until re-enabled', as
     }]));
   });
   await page.goto('/?start=live');
-  await expect(page.locator('[data-section="movies"]')).toBeVisible();
-  await expect(page.locator('[data-section="series"]')).toBeVisible();
   await expect(page.locator('.account-avatar')).toBeVisible();
 
   await enterTab(page, 'settings');
   await page.locator('#xtream-entries .source-toggle').click();
   await page.locator('#save-settings').click();
 
+  // The home screen offers Movies and Series only for an enabled account.
+  await expect(page.locator('#view-home')).toBeVisible();
+  await expect(page.locator('.home-tile[data-section="movies"]')).toHaveCount(0);
+  await expect(page.locator('.home-tile[data-section="series"]')).toHaveCount(0);
+  await enterTab(page, 'live');
   await expect(page.locator('#view-channels')).toBeVisible();
-  await expect(page.locator('[data-section="movies"]')).toHaveCount(0);
-  await expect(page.locator('[data-section="series"]')).toHaveCount(0);
   await expect(page.locator('.account-avatar')).toHaveCount(0);
 
   await enterTab(page, 'settings');
   await page.locator('#xtream-entries .source-toggle').click();
   await page.locator('#save-settings').click();
 
+  await expect(page.locator('#view-home')).toBeVisible();
+  await expect(page.locator('.home-tile[data-section="movies"]')).toBeVisible();
+  await expect(page.locator('.home-tile[data-section="series"]')).toBeVisible();
+  await enterTab(page, 'live');
   await expect(page.locator('#view-channels')).toBeVisible();
-  await expect(page.locator('[data-section="movies"]')).toBeVisible();
-  await expect(page.locator('[data-section="series"]')).toBeVisible();
   await expect(page.locator('.account-avatar')).toBeVisible();
 });
